@@ -30,7 +30,7 @@ def main(xlsx: str) -> None:
         sido = (r[col["1단계"]] or "").strip()
         sigungu = (r[col["2단계"]] or "").strip()
         dong = (r[col["3단계"]] or "").strip()
-        if not sido or dong:
+        if not sido or dong or sido == "이어도":  # offshore station, not a residential region
             continue
         regions.append(
             {

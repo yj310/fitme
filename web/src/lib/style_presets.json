@@ -1,0 +1,77 @@
+{
+  "_comment": "F04 presets. Choosing a preset never calls the LLM. 'icons' are subcategory codes for the preset card illustrations.",
+  "presets": [
+    {
+      "key": "natural_minimal",
+      "style_name": "자연스러운 미니멀",
+      "icons": ["knit", "denim", "loafers"],
+      "attributes": {
+        "style_tags": ["minimal", "casual"],
+        "preferred_colors": ["ivory", "charcoal", "navy", "white", "beige"],
+        "silhouette": { "top": ["semi_over", "regular"], "bottom": ["straight"] },
+        "mood": ["힘 뺀", "단정한"],
+        "avoid": { "subcategories": [], "colors": ["orange", "purple"] }
+      }
+    },
+    {
+      "key": "french_chic",
+      "style_name": "프렌치 시크",
+      "icons": ["trench_coat", "shirt", "flats"],
+      "attributes": {
+        "style_tags": ["french_chic", "classic"],
+        "preferred_colors": ["navy", "white", "beige", "black", "denim_blue"],
+        "silhouette": { "top": ["regular", "slim"], "bottom": ["straight", "slim"] },
+        "mood": ["세련된", "무심한"],
+        "avoid": { "subcategories": ["hoodie", "jogger"], "colors": [] }
+      }
+    },
+    {
+      "key": "casual_street",
+      "style_name": "캐주얼 스트릿",
+      "icons": ["hoodie", "cotton_pants", "sneakers"],
+      "attributes": {
+        "style_tags": ["street", "casual"],
+        "preferred_colors": ["black", "gray", "white", "khaki", "denim_blue"],
+        "silhouette": { "top": ["over", "semi_over"], "bottom": ["wide", "straight"] },
+        "mood": ["편안한", "힙한"],
+        "avoid": { "subcategories": ["blouse", "flats"], "colors": [] }
+      }
+    },
+    {
+      "key": "office_classic",
+      "style_name": "단정한 오피스",
+      "icons": ["blazer", "slacks", "loafers"],
+      "attributes": {
+        "style_tags": ["office", "classic"],
+        "preferred_colors": ["navy", "charcoal", "white", "beige", "gray"],
+        "silhouette": { "top": ["regular", "slim"], "bottom": ["straight", "slim"] },
+        "mood": ["깔끔한", "신뢰감"],
+        "avoid": { "subcategories": ["hoodie", "shorts", "slippers"], "colors": [] }
+      }
+    },
+    {
+      "key": "lovely_feminine",
+      "style_name": "러블리 페미닌",
+      "icons": ["blouse", "midi_skirt", "flats"],
+      "attributes": {
+        "style_tags": ["feminine", "classic"],
+        "preferred_colors": ["pink", "ivory", "white", "sky_blue", "beige"],
+        "silhouette": { "top": ["regular", "slim"], "bottom": ["straight"] },
+        "mood": ["사랑스러운", "부드러운"],
+        "avoid": { "subcategories": ["jogger"], "colors": ["black"] }
+      }
+    },
+    {
+      "key": "amekaji",
+      "style_name": "아메카지",
+      "icons": ["jacket", "denim", "boots"],
+      "attributes": {
+        "style_tags": ["amekaji", "vintage"],
+        "preferred_colors": ["khaki", "brown", "denim_blue", "ivory", "navy"],
+        "silhouette": { "top": ["regular", "semi_over"], "bottom": ["straight", "wide"] },
+        "mood": ["빈티지한", "자연스러운"],
+        "avoid": { "subcategories": ["blouse"], "colors": ["pink"] }
+      }
+    }
+  ]
+}
