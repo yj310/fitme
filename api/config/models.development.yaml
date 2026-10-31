@@ -1,0 +1,14 @@
+# Development mode models (spec 10.2). NVIDIA free endpoints are allowed ONLY here.
+allowed_providers: [nvidia, gemini, anthropic, openai]
+defaults:
+  chat:    { provider: nvidia, model: moonshotai/kimi-k2.6 }
+  tagging: { provider: nvidia, model: meta/muse-glimmer-30b }
+  style:   { provider: nvidia, model: moonshotai/kimi-k2.6 }
+spare:     { provider: nvidia, model: z-ai/glm-5.3-flash }
+# Tasks that fail the day-1 NVIDIA check run on Gemini free instead (spec 10.3).
+fallback:  { provider: gemini, chat: gemini-3.8-flash, tagging: gemini-3.5-flash-lite, style: gemini-3.8-flash }
+force_fallback_tasks: []
+byok_choices:
+  gemini:    { chat: [gemini-3.8-flash], tagging: [gemini-3.5-flash-lite, gemini-3.8-flash], style: [gemini-3.8-flash] }
+  anthropic: { chat: [claude-sonnet-5-5], tagging: [claude-haiku-5-5], style: [claude-sonnet-5-5] }
+  openai:    { chat: [gpt-5.5], tagging: [gpt-5.5-mini], style: [gpt-5.5] }
