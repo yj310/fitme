@@ -12,7 +12,7 @@ depends_on: []
 ## 체크리스트
 - [x] 저장소 생성 (공개 GitHub `yj310/fitme`), 비밀값 커밋 차단 훅(gitleaks)
 - [x] 태그 체계·추구미 프리셋·DB 마이그레이션(RLS, 비공개 버킷)
-- [x] 기상청 격자 표(공식 엑셀 → 274개 지역)
+- [x] 기상청 격자 표(공식 엑셀 → 272개 지역)
 - [x] API 계약 문서 (`docs/api-contract.md`)
 - [x] API: 인증·프로필·옷장·추구미·날씨·대화 SSE·오늘의 코디·저장·AI 연결
 - [x] 모델 라우터 + 개발/운영 모드 + 제공사 어댑터 (Gemini·Claude·OpenAI·NVIDIA)
