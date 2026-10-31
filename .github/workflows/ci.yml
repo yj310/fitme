@@ -31,7 +31,7 @@ jobs:
         with:
           version: "0.11.8"
       - run: uv sync --frozen
-      - run: uv run ruff check app tests
+      - run: uv run ruff check app tests scripts eval
       - run: uv run pytest -q
       - name: offline eval
         run: uv run python eval/run.py

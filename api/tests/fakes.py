@@ -80,6 +80,7 @@ class FakeAdapter:
                 out["occasion"] = occ
         if "내일" in msg:
             from datetime import timedelta
+
             from app.agent.core import today_kst
             out["date"] = (today_kst() + timedelta(days=1)).isoformat()
             out["time_of_day"] = "evening"

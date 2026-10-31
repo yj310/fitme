@@ -90,7 +90,7 @@ async def run_outfits(args) -> dict:
             weather.current = req["weather"]
             conv = await store.create_conversation("eval", "chat")
 
-            async def turn(message, current):
+            async def turn(message, current, store=store, llm=llm, conv=conv, req=req):
                 run = AgentRun(store=store, storage=None, llm=llm, weather=weather, settings=settings,
                                emit=lambda e, d: None, source="chat", conversation=await store.get_conversation(conv["id"]),
                                message=message, current_outfits=current)
