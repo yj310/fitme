@@ -124,8 +124,8 @@ cd api && uv run python eval/run.py --llm live --env production --tagging
 ## 6. 개발 / 운영 모드
 | | 개발 | 운영 |
 |---|---|---|
-| 대화·추구미 | NVIDIA `moonshotai/kimi-k2.6` | Gemini `gemini-3.8-flash` |
-| 태깅 | NVIDIA `meta/muse-glimmer-30b` | Gemini `gemini-3.5-flash-lite` |
+| 대화·추구미 | NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b` (추론 끔) | Gemini `gemini-3.8-flash` |
+| 태깅 | NVIDIA `nvidia/nemotron-3.5-super-vl-120b-a12b` | Gemini `gemini-3.5-flash-lite` |
 | 실패 시 | Gemini로 대체 (`fallback`) | — |
 
 NVIDIA 첫 점검에서 실패한 작업은 `config/models.development.yaml`의 `force_fallback_tasks`에 넣어 개발 모드에서도 Gemini로 돌린다.
