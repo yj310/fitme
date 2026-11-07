@@ -45,19 +45,19 @@ def test_model_single_kind_is_widened_to_group():
     p = parse("바지 빼줘", {"intent": "feedback", "exclude": [{"type": "subcategory", "value": "denim"}],
                           "feedback": {"type": "exclude_subcategory", "target": "denim"}})
     assert exclusion_targets(p) == PANTS
-    assert p["feedback"] == {"type": "exclude_group", "target": "pants"}
+    assert p["feedback"] == {"type": "exclude_group", "target": "pants", "outfit": None}
 
 
 def test_group_words_from_model_map_to_groups():
     p = parse("", {"intent": "feedback", "exclude": [{"type": "subcategory", "value": "skirt"}],
                    "feedback": {"type": "exclude_subcategory", "target": "스커트"}})
     assert p["exclude"] == [{"type": "group", "value": "skirts"}]
-    assert p["feedback"] == {"type": "exclude_group", "target": "skirts"}
+    assert p["feedback"] == {"type": "exclude_group", "target": "skirts", "outfit": None}
 
 
 def test_unknown_target_is_dropped_not_guessed():
     p = parse("레깅스 빼줘", {"intent": "feedback", "feedback": {"type": "exclude_subcategory", "target": "leggings"}})
-    assert p["feedback"] == {"type": "exclude_subcategory", "target": None}
+    assert p["feedback"] == {"type": "exclude_subcategory", "target": None, "outfit": None}
     assert exclusion_targets(p) == set()
 
 

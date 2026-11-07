@@ -130,6 +130,13 @@ export default function ChatPage() {
         case "ask":
           patchAssistant(assistantId, (m) => ({ ...m, ask: e.data }));
           break;
+        case "favorite": {
+          const { outfit_id, is_favorite } = e.data;
+          setCurrent((c) =>
+            c ? { ...c, outfits: c.outfits.map((x) => (x.id === outfit_id ? { ...x, is_favorite } : x)) } : c,
+          );
+          break;
+        }
         case "done":
           setConversationId(e.data.conversation_id);
           patchAssistant(assistantId, (m) => ({ ...m, run: { steps: e.data.steps, ms: e.data.ms }, pending: false }));

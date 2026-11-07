@@ -165,9 +165,17 @@ event: notice    data: {"code":"BYOK_FALLBACK","message":"연결한 Claude 키�
 event: message   data: {"delta":"자연스러운 미니멀로 3개 골랐어요."}
 event: outfits   data: {"version":2,"label":"슬랙스 제외","occasion":"소개팅","title":"소개팅 코디","outfits":[OutfitCard], "missing":[{"category":"shoes","have":0,"need":2}]}
 event: ask       data: {"ask_id":"uuid","kind":"remember"|"clarify","question":"...","options":[{"label":"네, 기억해줘","value":"persist"},{"label":"이번만","value":"once"}]}
+event: favorite  data: {"outfit_id":"uuid","is_favorite":true}   // "1번 마음에 들어" → 카드 ★ 갱신
 event: done      data: {"run_id":"uuid","conversation_id":"uuid","steps":6,"ms":6800}
 event: error     data: {"code":"FREE_QUOTA_EXCEEDED","message":"..."}
 ```
+
+대화 중 지금 카드에 대한 말은 새로 짜지 않고 처리한다.
+- "왜 이렇게 골랐어?" (question) → `answer_question` 단계 + message만. outfits 이벤트 없음.
+- "1번 마음에 들어" (like) → 즐겨찾기 저장, `favorite` 이벤트 + message. outfits 이벤트 없음.
+- "2번 신발만 바꿔줘" (swap) → AI 호출 없이 나머지는 그대로 두고 그 부분만 바꾼 새 버전(label "2번 신발만 교체"). 번호가 없으면 카드마다 하나씩 바꾼다.
+- "다른 거 보여줘" (reroll) → 지금 카드의 상의+하의(또는 원피스) 조합은 다시 내지 않는다.
+- "너무 무난해" (more_accent) → 포인트 컬러·패턴이 있는 조합을 우선.
 - `step`은 같은 도구에 대해 `running` → `done|failed` 두 번 올 수 있다. 웹은 `tool` 순서대로 갱신.
 
 GET `/chat/latest` → `{ conversation: { id, title, updated_at } | null, messages: ChatMessage[], current: OutfitsEvent | null }`

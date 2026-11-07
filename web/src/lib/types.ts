@@ -292,6 +292,7 @@ export type ChatEvent =
   | { event: "outfits"; data: OutfitsEvent }
   | { event: "ask"; data: AskEvent }
   | { event: "done"; data: DoneEvent }
+  | { event: "favorite"; data: { outfit_id: string; is_favorite: boolean } }
   | { event: "error"; data: { code: string; message: string } };
 
 export interface ChatRequest {

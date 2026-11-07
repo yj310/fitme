@@ -51,13 +51,16 @@ class AgentRun:
         # current outfits shown to the user → item refs i1.. for parse_request
         self.current_outfits = current_outfits or []
         self.ref_map: dict[str, dict] = {}
-        refs = []
-        for o in self.current_outfits:
+        refs: list[dict] = []
+        for n, o in enumerate(self.current_outfits, 1):
             for it in o["items"]:
-                if it["id"] not in {v["id"] for v in self.ref_map.values()}:
-                    ref = f"i{len(self.ref_map) + 1}"
-                    self.ref_map[ref] = it
-                    refs.append({"ref": ref, **it})
+                known = next((r for r in refs if r["id"] == it["id"]), None)
+                if known:
+                    known["cards"].append(n)
+                    continue
+                ref = f"i{len(self.ref_map) + 1}"
+                self.ref_map[ref] = it
+                refs.append({"ref": ref, **it, "cards": [n]})
         self.current_refs = refs
 
         self.request: dict = {}
@@ -80,6 +83,9 @@ class AgentRun:
         self.used_rules_fill = False
         self.debug_reason = ""
         self.model_ask: dict | None = None  # AI wanted to ask; used only if rules find nothing
+        self.swap: dict | None = None       # "신발만 바꿔줘": {"category": "shoes", "outfit": 2 | None}
+        self.avoid: set[frozenset] = set()  # looks the user asked to replace ("다른 거 보여줘")
+        self.div_key = rules.main_piece     # what must differ between the three cards
         self.weather: dict | None = None
         self.temp: float | None = None
         self.wind: float | None = None
@@ -168,12 +174,17 @@ class AgentRun:
     def _feedback_label(self, fb: dict) -> str:
         t, target = fb.get("type"), fb.get("target")
         name = self._target_label(target)
+        if t == "like":
+            return f"{fb.get('outfit') or 1}번 저장"
+        if t == "swap":
+            where = f"{fb['outfit']}번 " if fb.get("outfit") else ""
+            return f"{where}{tx.CATEGORY_LABEL.get(target, '')}만 교체".strip()
         return {
             "exclude_item": f"{name} 제외", "exclude_subcategory": f"{name} 제외", "exclude_color": f"{name} 제외",
             "exclude_group": f"{name} 전체 제외",
             "include_item": f"{name} 포함", "warmer": "더 따뜻하게", "cooler": "더 시원하게",
             "more_formal": "더 단정하게", "more_casual": "더 편하게", "change_style": "스타일 변경",
-            "reroll": "다시 짜기", "other": "요청 반영",
+            "reroll": "다른 조합", "more_accent": "포인트 컬러", "other": "요청 반영",
         }.get(t, "요청 반영")
 
     async def save_feedback(self) -> str:
@@ -216,9 +227,15 @@ class AgentRun:
             c.formality_delta = max(-2, c.formality_delta - 1)
         elif t == "change_style":
             c.style_tags = self.request.get("style_tags") or c.style_tags
+        elif t == "more_accent":
+            c.accent = True
+        elif t == "reroll":
+            self.avoid |= {core.base_key(o["items"]) for o in self.current_outfits}
+        elif t == "swap":
+            self.swap = {"category": target, "outfit": fb.get("outfit")}
         if self.message and t in ("other", "change_style"):
             c.notes.append(self.message[:120])
-        label = self._feedback_label({"type": t, "target": target})
+        label = self._feedback_label({"type": t, "target": target, "outfit": fb.get("outfit")})
         c.labels = [label]
         outfit_id = self.current_outfits[0]["id"] if self.current_outfits else None
         self.feedback_row = await self.store.insert_feedback({
@@ -265,7 +282,7 @@ class AgentRun:
         ids, subs, colors = self.excl
         w = self.weather if self.weather and self.weather.get("available") else None
         avoid = []
-        for pair in self.uc.rerolled_pairs:
+        for pair in list(self.avoid) + list(self.uc.rerolled_pairs):
             shorts = [s.alias.get(x) for x in pair]
             if all(shorts):
                 avoid.append(shorts)
@@ -288,7 +305,8 @@ class AgentRun:
                         "colors": [tx.COLOR_LABEL.get(x, x) for x in colors]},
             "must_include": s.must_include,
             "notes": self.constraints.notes[-3:],
-            "previous_failures": self.fails[:8],
+            "accent": self.constraints.accent,
+            "previous_failures": [rules.describe_fails([f]) for f in dict.fromkeys(self.fails)][:8],
             "avoid_combos": avoid[:5],
             "candidates": [core.candidate_view(i, s.alias[i["id"]]) for i in s.candidates],
         }
@@ -310,31 +328,41 @@ class AgentRun:
             temp=self.temp, wind=self.wind, rainy=self.rainy, preferred_fit=self.uc.user.get("preferred_fit"),
             silhouette_top=set(sil.get("top", [])), silhouette_bottom=set(sil.get("bottom", [])),
             favorite_item_ids=self.uc.favorite_item_ids, favorite_colors=self.uc.favorite_colors,
-            rerolled_pairs=self.uc.rerolled_pairs)
+            rerolled_pairs=self.uc.rerolled_pairs, want_accent=self.constraints.accent)
 
     # ── responses ──
-    def _message_text(self, n: int, missing: list[dict]) -> str:
+    def _head(self, n: int) -> str:
         fb = self.feedback_row
         if fb:
             t = fb["feedback_type"]
-            name = self._target_label(self.pending_feedback.get("target") if self.pending_feedback else None)
+            target = self.pending_feedback.get("target") if self.pending_feedback else None
+            name = self._target_label(target)
             if t.startswith("exclude") and name:
-                head = f"{name}{eul(name)} 빼고 다시 짰어요."
-            elif t == "warmer":
-                head = "더 따뜻하게 다시 짰어요."
-            elif t == "cooler":
-                head = "더 가볍게 다시 짰어요."
-            elif t == "reroll":
-                head = "다른 조합으로 다시 짰어요."
-            else:
-                head = "말씀하신 대로 다시 짰어요."
-        else:
-            name = (self.uc.style or {}).get("style_name")
-            head = f"{name}로 {n}개 골랐어요." if name else f"코디 {n}개 골랐어요."
-        text = head + " " + self._set_summary()
+                return f"{name}{eul(name)} 빼고 다시 짰어요."
+            if t == "include_item" and name:
+                return f"{name}{eul(name)} 넣어서 다시 짰어요."
+            if t == "swap" and self.swap:
+                cat = tx.CATEGORY_LABEL.get(self.swap["category"], "")
+                where = f"{self.swap['outfit']}번 코디에서 " if self.swap.get("outfit") else ""
+                return f"{where}{cat}만 바꿔 봤어요."
+            return {"warmer": "더 따뜻하게 다시 짰어요.", "cooler": "더 가볍게 다시 짰어요.",
+                    "more_formal": "더 단정하게 다시 짰어요.", "more_casual": "더 편하게 다시 짰어요.",
+                    "more_accent": "포인트 컬러를 넣어서 다시 짰어요.", "reroll": "다른 조합으로 다시 짰어요.",
+                    "change_style": "말씀하신 분위기로 다시 짰어요."}.get(t, "말씀하신 대로 다시 짰어요.")
+        style = (self.uc.style or {}).get("style_name")
+        occ = self.request.get("occasion")
+        what = f"{occ} 코디" if occ else "코디"
+        return f"{style} 느낌으로 {what} {n}개 골랐어요." if style else f"{what} {n}개 골랐어요."
+
+    def _message_text(self, n: int, missing: list[dict]) -> str:
+        text = self._head(n) + " " + self._set_summary()
         if missing:
             cats = ", ".join(tx.CATEGORY_LABEL[m["category"]] for m in missing)
             text += f" 옷장에 {cats}이(가) 부족해서 {n}개만 만들었어요."
+        elif n < 3 and self.swap:
+            text += f" 바꿔 입을 수 있는 {tx.CATEGORY_LABEL.get(self.swap['category'], '옷')}이 {n}개뿐이에요."
+        elif n < 3 and self.search and self.search.must_include:
+            text += f" 넣기로 한 옷으로 만들 수 있는 조합이 {n}개예요."
         elif n < 3:
             text += f" 빼기로 한 조건에 맞는 조합이 {n}개뿐이에요."
             subs = self.vctx().exclude_subcategories
@@ -344,16 +372,75 @@ class AgentRun:
         return text.strip()
 
     def _set_summary(self) -> str:
-        """The AI's one-line summary describes ITS proposals in ITS order. Use it only when the final
-        top-3 are exactly those; otherwise (reranked, rules fill) describe the final cards from their titles."""
+        """One short clause per card, in the final order: '1번은 셔츠로 단정하게, 2번은 …로 골랐어요.'"""
         if not self.final:
             return ""
-        alias = self.search.alias if self.search else {}
-        final_sets = [frozenset(alias.get(i["id"], i["id"]) for i in e.items) for e in self.final]
-        model_sets = [frozenset(o.get("items") or []) for o in (self.raw or [])]
-        if self.gen_summary and not self.used_rules_fill and final_sets == model_sets[:len(final_sets)]:
-            return self.gen_summary
-        return ", ".join(f"{k}번은 {e.title}" for k, e in enumerate(self.final, 1)) + "."
+        if self.swap:
+            cat = self.swap["category"]
+            none = f"{tx.CATEGORY_LABEL.get(cat, '')} 없이"
+            pieces = [next((i["name"] for i in e.items if i["category"] == cat), none) for e in self.final]
+            last = pieces[-1]
+            return ", ".join(f"{k}번은 {p}" for k, p in enumerate(pieces, 1)) + (
+                " 골랐어요." if last == none else f"{ro(last)} 골랐어요.")
+        points: list[str] = []
+        for e in self.final:
+            pt = _point(e)
+            if pt in points:  # "1번은 니트로 포근하게, 3번은 니트로 포근하게" reads like a bug
+                pt = _point(e, own=False)
+            if pt in points:
+                pt = e.title
+            points.append(pt)
+        return ", ".join(f"{k}번은 {pt}" for k, pt in enumerate(points, 1)) + " 맞췄어요."
+
+    # ── code-only turns ──
+    def build_swaps(self) -> None:
+        """'2번 신발만 바꿔줘': three versions of card 2 with other shoes. Without a card number:
+        each current card with its best other piece, in the same order."""
+        cat = self.swap["category"]
+        owned = self.search.owned
+        cards = self.current_outfits
+        n = self.swap.get("outfit")
+        picked = [cards[n - 1]] if n and n <= len(cards) else cards[:3]
+        bases = [[owned[i["id"]] for i in o["items"] if i["id"] in owned] for o in picked]
+        vctx, sctx = self.vctx(), self.sctx()
+        final: list[core.Evaluated] = []
+        if len(bases) == 1:
+            variants = core.swap_variants(bases[0], cat, self.search, vctx, sctx)
+
+            def key(items):
+                return next((i["id"] for i in items if i["category"] == cat), None)
+            final = core.top3(variants, key=key)
+        else:
+            used: set[str | None] = set()
+            for base in bases:
+                for e in core.swap_variants(base, cat, self.search, vctx, sctx):
+                    new = next((i["id"] for i in e.items if i["category"] == cat), None)
+                    if new not in used or len(used) >= 3:
+                        used.add(new)
+                        final.append(e)
+                        break
+        old_names = {o["id"]: {i["category"]: i["name"] for i in o["items"]} for o in picked}
+        for e in final:
+            new = next((i for i in e.items if i["category"] == cat), None)
+            olds = [names.get(cat) for names in old_names.values() if names.get(cat)]
+            line = (f"{olds[0]} 대신 {new['name']}" if new and len(olds) == 1 else
+                    f"{new['name']}{ro(new['name'])} 바꿨어요" if new else f"{tx.CATEGORY_LABEL[cat]} 없이 가볍게")
+            e.reasons = [line] + [r for r in e.reasons if r != line][:2]
+        self.final = final
+
+    async def like(self) -> None:
+        n = (self.pending_feedback or {}).get("outfit") or 1
+        n = min(n, len(self.current_outfits))
+        oid = self.current_outfits[n - 1]["id"]
+        await self.store.set_favorite(oid, True, now_iso())
+        await self.respond_text(f"{n}번 코디를 즐겨찾기에 저장했어요. 다음 추천부터 취향에 반영할게요.")
+        self.emit("favorite", {"outfit_id": oid, "is_favorite": True})
+
+    async def explain(self) -> None:
+        from app.agent.llm_tasks import answer_question
+        text = await answer_question(self.llm, self.message, self.current_outfits,
+                                     (self.state.get("request") or {}).get("occasion"))
+        await self.respond_text(text)
 
     async def respond(self) -> None:
         version = int(self.state.get("version", 0)) + 1
@@ -414,3 +501,27 @@ class AgentRun:
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+
+def ro(word: str) -> str:
+    """로/으로: 셔츠로, 니트로, 원피스로, 코트로 / 블라우스로 / 맨투맨으로."""
+    code = ord(word[-1]) - 0xAC00 if word else -1
+    if 0 <= code < 11172 and code % 28 and code % 28 != 8:  # final consonant other than ㄹ
+        return "으로"
+    return "로"
+
+
+FEEL = {1: "편하게", 2: "깔끔하게", 3: "단정하게"}
+
+
+def _point(e: core.Evaluated, own: bool = True) -> str:
+    """The model's short 'point' when it reads as '~하게', else one built from the main piece."""
+    if own and e.point and e.point.rstrip(".").endswith("게") and " " in e.point.strip():
+        return e.point.rstrip(".")
+    main = next((i for i in e.items if i["category"] in ("dress", "top")), e.items[0])
+    sub = tx.item_name(main["color"], main["subcategory"]) if not own else tx.SUBCATEGORY_LABEL.get(
+        main["subcategory"], "옷")
+    avg = round(sum(i["formality"] for i in e.items) / len(e.items))
+    return f"{sub}{ro(sub)} {FEEL.get(avg, '깔끔하게')}"
+

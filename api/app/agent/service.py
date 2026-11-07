@@ -29,10 +29,16 @@ async def _current_outfits(ctx: Ctx, conversation: dict) -> list[dict]:
     for oid in ids[:3]:
         o = await ctx.store.get_outfit(oid)
         if o:
-            out.append({"id": o["id"], "items": [{"id": it["id"], "name": it["name"], "subcategory": it["subcategory"],
-                                                  "color": it["color"], "category": it["category"]}
-                                                 for _, it in outfit_item_rows(o)]})
+            out.append(_card_brief(o))
     return out
+
+
+def _card_brief(o: dict) -> dict:
+    """What the agent needs to know about a card on screen (refs, likes, swaps, '왜?')."""
+    return {"id": o["id"], "title": o.get("title"), "reasons": o.get("reasons") or [],
+            "weather": (o.get("weather_snapshot") or {}).get("label"),
+            "items": [{"id": it["id"], "name": it["name"], "subcategory": it["subcategory"],
+                       "color": it["color"], "category": it["category"]} for _, it in outfit_item_rows(o)]}
 
 
 async def _execute(ctx: Ctx, run: AgentRun, source: str, request_text: str) -> None:
@@ -257,7 +263,7 @@ def _today_result(run: AgentRun) -> dict:
 
 # ───────────────────────── outfit feedback (chips or text) ─────────────────────────
 
-CHIP_FEEDBACK = {"change_top": "exclude_item", "too_plain": "other", "warmer": "warmer", "reroll": "reroll"}
+CHIP_FEEDBACK = {"change_top": "exclude_item", "too_plain": "more_accent", "warmer": "warmer", "reroll": "reroll"}
 
 
 async def outfit_feedback(ctx: Ctx, outfit_id: str, chip: str | None, message: str | None) -> dict:
@@ -271,8 +277,7 @@ async def outfit_feedback(ctx: Ctx, outfit_id: str, chip: str | None, message: s
     body = state.get("today_body") or {}
     user = await ctx.store.get_user() or {}
     items = outfit_item_rows(outfit)
-    current = [{"id": outfit["id"], "items": [{"id": it["id"], "name": it["name"], "subcategory": it["subcategory"],
-                                               "color": it["color"], "category": it["category"]} for _, it in items]}]
+    current = [_card_brief(outfit)]
     events: list = []
     source = outfit.get("source") or "today"
     run = AgentRun(store=ctx.store, storage=ctx.storage, llm=ctx.llm, weather=ctx.app.weather,
@@ -297,6 +302,7 @@ async def outfit_feedback(ctx: Ctx, outfit_id: str, chip: str | None, message: s
                          "include": [], "exclude": [], "feedback": {"type": fb_type, "target": target}}
         if chip == "too_plain":
             run.message = "너무 무난해요. 포인트 컬러나 패턴을 하나 넣어 주세요."
+            run.constraints.accent = True
         if chip == "reroll":
             run.constraints.notes.append("방금 조합과 다른 상의·하의 조합으로")
     elif not message:

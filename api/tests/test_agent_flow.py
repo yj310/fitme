@@ -295,3 +295,68 @@ def test_remember_twice_keeps_one_rule(h):
         h.chat("네, 기억해줘", conv, answer={"ask_id": ask["ask_id"], "value": "persist"})
     me = h.client.get("/api/v1/me").json()
     assert len(me["persistent_exclusions"]) == 1
+
+
+def _first_turn(h, msg="내일 출근룩 짜줘"):
+    run(h.seed())
+    evs = h.chat(msg)
+    return events_of(evs, "done")[0]["conversation_id"], events_of(evs, "outfits")[-1]
+
+
+def test_swap_one_part_keeps_the_rest(h):
+    conv, before = _first_turn(h)
+    card = before["outfits"][1]
+    keep = {i["id"] for i in card["items"] if i["role"] != "shoes"}
+    old_shoes = next(i["id"] for i in card["items"] if i["role"] == "shoes")
+    calls = len(h.calls)
+    evs = h.chat("2번 좋은데 신발만 바꿔줘", conv)
+    ev = events_of(evs, "outfits")[-1]
+    assert len(h.calls) == calls + 1                      # parse only, no outfit generation call
+    assert ev["label"] == "2번 신발만 교체"
+    for o in ev["outfits"]:
+        assert {i["id"] for i in o["items"] if i["role"] != "shoes"} == keep
+        assert next(i["id"] for i in o["items"] if i["role"] == "shoes") != old_shoes
+    assert "신발만 바꿔 봤어요" in events_of(evs, "message")[0]["delta"]
+    assert not events_of(evs, "ask")                       # not an exclusion: nothing to remember
+
+
+def test_like_saves_favorite_without_regenerating(h):
+    conv, before = _first_turn(h)
+    evs = h.chat("1번이 제일 마음에 들어", conv)
+    assert not events_of(evs, "outfits")
+    assert "즐겨찾기" in events_of(evs, "message")[0]["delta"]
+    favs = h.client.get("/api/v1/outfits", params={"favorite": "true"}).json()
+    assert [o["id"] for o in favs["outfits"]] == [before["outfits"][0]["id"]]
+
+
+def test_question_about_cards_is_answered_not_regenerated(h):
+    conv, _ = _first_turn(h)
+    evs = h.chat("왜 이렇게 골랐어?", conv)
+    assert not events_of(evs, "outfits")
+    assert events_of(evs, "message")[0]["delta"] == "1번은 니트로 포근하게 골랐어요."
+
+
+def test_reroll_shows_new_looks(h):
+    conv, before = _first_turn(h)
+    seen = {frozenset(i["id"] for i in o["items"] if i["role"] in ("top", "bottom", "dress")) for o in before["outfits"]}
+    evs = h.chat("다른 거 보여줘", conv)
+    after = events_of(evs, "outfits")[-1]
+    now = {frozenset(i["id"] for i in o["items"] if i["role"] in ("top", "bottom", "dress")) for o in after["outfits"]}
+    assert now and not (now & seen)
+    assert after["label"] == "다른 조합"
+
+
+def test_include_main_piece_still_gives_three_cards(h):
+    conv, _ = _first_turn(h)
+    evs = h.chat("니트 넣어줘", conv)
+    ev = events_of(evs, "outfits")[-1]
+    assert len(ev["outfits"]) == 3
+    assert all(any(i["subcategory"] == "knit" for i in o["items"]) for o in ev["outfits"])
+    assert ev["label"] == "니트 포함"
+    assert events_of(evs, "message")[0]["delta"].startswith("니트를 넣어서 다시 짰어요.")
+
+
+def test_small_talk_replies(h):
+    run(h.seed())
+    assert events_of(h.chat("안녕"), "message")[0]["delta"].startswith("안녕하세요!")
+    assert events_of(h.chat("고마워"), "message")[0]["delta"].startswith("천만에요!")

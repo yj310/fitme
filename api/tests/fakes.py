@@ -60,6 +60,8 @@ class FakeAdapter:
             data = self._parse(user)
         elif "FITME's stylist" in system:
             data = self._generate(json.loads(user))
+        elif "questions about FITME outfit cards" in system:
+            data = {"answer": "1번은 니트로 포근하게 골랐어요."}
         elif "tag one clothing photo" in system:
             data = {"category": "top", "subcategory": "knit", "color": "ivory", "pattern": "solid", "fit": "semi_over",
                     "material": "knit", "seasons": ["fall", "winter"], "style_tags": ["minimal"], "formality": 2,
@@ -95,6 +97,23 @@ class FakeAdapter:
             out["include"].append({"type": "subcategory", "value": "denim"})
         if "따뜻" in msg and has_current:
             out["intent"], out["feedback"] = "feedback", {"type": "warmer", "target": None}
+        num = re.search(r"(\d)번", msg)
+        n = int(num.group(1)) if num else None
+        if has_current and "마음에" in msg:
+            out["intent"], out["feedback"] = "feedback", {"type": "like", "target": None, "outfit": n}
+        if has_current and "만 바꿔" in msg:
+            part = "shoes" if "신발" in msg else "outer" if "아우터" in msg else "bottom"
+            out["intent"], out["feedback"] = "feedback", {"type": "swap", "target": part, "outfit": n}
+        if has_current and "다른 거" in msg:
+            out["intent"], out["feedback"] = "feedback", {"type": "reroll", "target": None, "outfit": None}
+        if has_current and "넣어" in msg and "니트" in msg:
+            out["intent"] = "feedback"
+            out["include"] = [{"type": "subcategory", "value": "knit"}]
+            out["feedback"] = {"type": "include_item", "target": None, "outfit": None}
+        if has_current and msg.startswith("왜"):
+            out["intent"] = "question"
+        if any(w in msg for w in ("안녕", "고마워")):
+            out["intent"] = "other"
         return out
 
     def _generate(self, p: dict) -> dict:

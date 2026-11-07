@@ -13,6 +13,8 @@ from app.domain import rules
 from app.domain import taxonomy as tx
 
 MAX_CANDIDATES = 40
+CANDIDATE_ORDER = ["top", "bottom", "dress", "outer", "shoes"]
+HOT_TOPS = {"knit", "sweatshirt", "hoodie"}   # never at 25° and up, however thin the tag says they are
 
 
 # ───────────────────────── context (get_user_profile / get_style_profile) ─────────────────────────
@@ -73,6 +75,7 @@ class Constraints:
     style_tags: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     labels: list[str] = field(default_factory=list)   # version badge text, e.g. "슬랙스 제외"
+    accent: bool = False                               # "너무 무난해": want one point color/pattern
 
     def to_state(self) -> dict:
         return {"exclude_item_ids": sorted(self.exclude_item_ids),
@@ -81,7 +84,8 @@ class Constraints:
                 "include_item_ids": sorted(self.include_item_ids),
                 "include_subcategories": sorted(self.include_subcategories),
                 "warmth_delta": self.warmth_delta, "formality_delta": self.formality_delta,
-                "style_tags": self.style_tags, "notes": self.notes[-5:], "labels": self.labels[-3:]}
+                "style_tags": self.style_tags, "notes": self.notes[-5:], "labels": self.labels[-3:],
+                "accent": self.accent}
 
     @classmethod
     def from_state(cls, s: dict | None) -> Constraints:
@@ -90,7 +94,7 @@ class Constraints:
                    set(s.get("exclude_colors", [])), set(s.get("include_item_ids", [])),
                    set(s.get("include_subcategories", [])), s.get("warmth_delta", 0),
                    s.get("formality_delta", 0), list(s.get("style_tags", [])), list(s.get("notes", [])),
-                   list(s.get("labels", [])))
+                   list(s.get("labels", [])), bool(s.get("accent")))
 
 
 def effective_exclusions(c: Constraints, uc: UserContext, occasion: str | None) -> tuple[set, set, set]:
@@ -152,17 +156,23 @@ def search_wardrobe(items: list[dict], c: Constraints, excl: tuple[set, set, set
     for i in sorted(pool, key=rank):
         by_cat.setdefault(i["category"], []).append(i)
     caps = {"top": 12, "bottom": 10, "dress": 4, "outer": 7, "shoes": 7}
-    chosen = [i for cat, lst in by_cat.items() for i in lst[:caps.get(cat, 6)]][:MAX_CANDIDATES]
+    # Always the same category order: the model reads "c1.." by position and mixes them up otherwise.
+    chosen = [i for cat in CANDIDATE_ORDER for i in by_cat.get(cat, [])[:caps[cat]]][:MAX_CANDIDATES]
     alias = {i["id"]: f"c{n + 1}" for n, i in enumerate(chosen)}
     reverse = {v: k for k, v in alias.items()}
     must = [alias[i["id"]] for i in chosen
             if i["id"] in c.include_item_ids or i["subcategory"] in c.include_subcategories]
     owned_subs = {i["subcategory"] for i in owned.values()}
-    missing = [s for s in c.include_subcategories if s not in owned_subs]
+    # "원피스로" includes every dress kind: only missing when the user owns none of that group.
+    covered = {sub for subs in tx.GROUPS.values() if set(subs) <= c.include_subcategories and set(subs) & owned_subs
+               for sub in subs}
+    missing = [s for s in c.include_subcategories if s not in owned_subs and s not in covered]
     return Search(chosen, alias, reverse, owned, must, missing)
 
 
 def _way_off(i: dict, band: rules.TempBand, temp: float) -> bool:
+    if i["category"] == "top" and temp >= 25 and i["subcategory"] in HOT_TOPS:
+        return True
     if i["category"] in ("top", "dress"):
         return i["warmth"] > band.top[1] + 1
     if i["category"] == "outer":
@@ -198,16 +208,21 @@ class Evaluated:
     score: float = 0.0
     detail: dict = field(default_factory=dict)
     by_rules: bool = False
+    point: str = ""          # "셔츠로 단정하게": what sets this card apart (chat summary)
 
 
-def evaluate(raw: list[dict], s: Search, vctx: rules.ValidationContext) -> tuple[list[Evaluated], list[str]]:
+def evaluate(raw: list[dict], s: Search, vctx: rules.ValidationContext,
+             avoid: set[frozenset] | None = None) -> tuple[list[Evaluated], list[str]]:
+    """avoid: top+bottom (or dress) id sets the user already saw and asked to replace ("다른 거")."""
     valid, fails = [], []
     seen = set()
     for o in raw:
         real = [s.reverse.get(x, x) for x in o["items"]]
         f = rules.validate_outfit(real, vctx)
         if s.must_include and not any(x in s.must_include for x in o["items"]):
-            f.append("MISSING_REQUIRED_ITEM")
+            f.append(f"MISSING_REQUIRED_ITEM:{'/'.join(s.must_include)}")
+        if not f and avoid and base_key([vctx.owned[r] for r in real]) in avoid:
+            f.append("REPEATED_COMBO")
         if f:
             fails.extend(f)
             continue
@@ -216,7 +231,10 @@ def evaluate(raw: list[dict], s: Search, vctx: rules.ValidationContext) -> tuple
             continue
         seen.add(key)
         items = sorted((vctx.owned[r] for r in real), key=lambda i: tx.ROLE_ORDER.index(i["category"]))
-        valid.append(Evaluated(items, o.get("title") or "", o.get("reasons") or []))
+        title = o.get("title") or ""
+        if not title or title.count("+") > 1:  # keep cards short: top + bottom (or the dress) only
+            title = rule_title(items)
+        valid.append(Evaluated(items, title, o.get("reasons") or [], point=o.get("point") or ""))
     return valid, fails
 
 
@@ -227,9 +245,42 @@ def score_all(cands: list[Evaluated], sctx: rules.ScoreContext) -> list[Evaluate
     return cands
 
 
-def top3(cands: list[Evaluated]) -> list[Evaluated]:
-    picked = rules.pick_top3([(e.score, e.items, e) for e in cands])
-    return [p[2] for p in picked]
+def top3(cands: list[Evaluated], key=None) -> list[Evaluated]:
+    picked = [p[2] for p in rules.pick_top3([(e.score, e.items, e) for e in cands], key=key)]
+    if key is base_key and len(picked) < 3:
+        # One pinned dress (or top with one bottom): vary the outer and shoes instead of showing one card.
+        rest = [(e.score, e.items, e) for e in cands if all(e is not q for q in picked)]
+        more = rules.pick_top3(rest, key=lambda items: frozenset(i["id"] for i in items))
+        picked += [p[2] for p in more][: 3 - len(picked)]
+    return picked
+
+
+def base_key(items: list[dict]) -> frozenset:
+    """Top + bottom (or the dress): what makes two outfits 'the same look'."""
+    return frozenset(i["id"] for i in items if i["category"] in ("top", "bottom", "dress"))
+
+
+def pinned_mains(s: Search) -> bool:
+    """The user asked for specific tops/dresses ("핑크 블라우스 넣어줘", "니트로"): every card must reuse one
+    of a few main pieces, so cards may share the top and differ in the bottom instead."""
+    if not s.must_include:
+        return False
+    cats = {s.owned[s.reverse[x]]["category"] for x in s.must_include if x in s.reverse}
+    return bool(cats) and cats <= {"top", "dress"}
+
+
+def diversity_key(s: Search):
+    return base_key if pinned_mains(s) else rules.main_piece
+
+
+def distinct_looks(s: Search) -> int:
+    """How many cards can differ in their diversity key."""
+    mains = [i for i in s.candidates if i["category"] in ("top", "dress")]
+    if pinned_mains(s):
+        pinned = [i for i in mains if s.alias[i["id"]] in s.must_include]
+        bottoms = sum(1 for i in s.candidates if i["category"] == "bottom")
+        return sum(3 if i["category"] == "dress" else max(1, bottoms) for i in pinned)
+    return len(mains)
 
 
 def max_distinct_mains(s: Search) -> int:
@@ -239,7 +290,7 @@ def max_distinct_mains(s: Search) -> int:
 # ───────────────────────── rules fill (backup when the LLM can't produce enough) ─────────────────────────
 
 def fill_with_rules(s: Search, vctx: rules.ValidationContext, sctx: rules.ScoreContext,
-                    have: list[Evaluated], limit: int = 400) -> list[Evaluated]:
+                    have: list[Evaluated], limit: int = 400, avoid: set[frozenset] | None = None) -> list[Evaluated]:
     by = {c: [i for i in s.candidates if i["category"] == c] for c in tx.CATEGORIES}
     outers = [None] + by["outer"]
     shoes = by["shoes"] or [None]
@@ -254,6 +305,8 @@ def fill_with_rules(s: Search, vctx: rules.ValidationContext, sctx: rules.ScoreC
             continue
         if s.must_include and not any(s.alias[i] in s.must_include for i in ids):
             continue
+        if avoid and base_key(items) in avoid:
+            continue
         seen.add(frozenset(ids))
         e = Evaluated(items, rule_title(items), rule_reasons(items, vctx), by_rules=True)
         e.score, e.detail = rules.score_outfit(items, sctx, w)
@@ -261,17 +314,44 @@ def fill_with_rules(s: Search, vctx: rules.ValidationContext, sctx: rules.ScoreC
     return out
 
 
+def swap_variants(base: list[dict], category: str, s: Search, vctx: rules.ValidationContext,
+                  sctx: rules.ScoreContext) -> list[Evaluated]:
+    """Keep every piece of `base` except its `category` piece, and try each other candidate (or none,
+    for an outer) in its place. Valid, scored, best first."""
+    old = next((i for i in base if i["category"] == category), None)
+    keep = [i for i in base if i["category"] != category]
+    options: list[dict | None] = [i for i in s.candidates if i["category"] == category
+                                  and (old is None or i["id"] != old["id"])]
+    if category == "outer" and old is not None:
+        options.append(None)
+    w = scoring_weights()
+    out = []
+    for new in options:
+        items = sorted(keep + ([new] if new else []), key=lambda i: tx.ROLE_ORDER.index(i["category"]))
+        if rules.validate_outfit([i["id"] for i in items], vctx):
+            continue
+        e = Evaluated(items, rule_title(items), rule_reasons(items, vctx), by_rules=True)
+        e.score, e.detail = rules.score_outfit(items, sctx, w)
+        out.append(e)
+    return sorted(out, key=lambda e: -e.score)
+
+
 def rule_title(items: list[dict]) -> str:
     main = [i for i in items if i["category"] in ("top", "dress", "bottom")]
-    return " + ".join(tx.item_name(i["color"], i["subcategory"]) for i in main[:2])
+    return " + ".join(i.get("name") or tx.item_name(i["color"], i["subcategory"]) for i in main[:2])
+
+
+def _eul(word: str) -> str:
+    code = ord(word[-1]) - 0xAC00 if word else -1
+    return "을" if 0 <= code < 11172 and code % 28 else "를"
 
 
 def rule_reasons(items: list[dict], vctx: rules.ValidationContext) -> list[str]:
     out = []
     if vctx.temp is not None:
         outer = next((i for i in items if i["category"] == "outer"), None)
-        out.append(f"{int(vctx.temp)}° 기준으로 " + (f"{tx.SUBCATEGORY_LABEL[outer['subcategory']]}을 걸쳐 보온"
-                                                  if outer else "가볍게 입기 좋은 조합"))
+        name = tx.SUBCATEGORY_LABEL[outer["subcategory"]] if outer else ""
+        out.append(f"{int(vctx.temp)}° 기준으로 " + (f"{name}{_eul(name)} 걸쳐 보온" if outer else "가볍게 입기 좋은 조합"))
     neutral = all(i["color"] in tx.NEUTRAL_COLORS for i in items)
     out.append("뉴트럴 톤으로 차분하게 맞춘 색 조합" if neutral else "포인트 컬러 하나로 생기를 준 조합")
     return out
