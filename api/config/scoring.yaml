@@ -1,0 +1,6 @@
+# Outfit score weights (spec 8.2). Tune with the eval set.
+weights:
+  style: 0.35
+  harmony: 0.25
+  situation: 0.20
+  preference: 0.20

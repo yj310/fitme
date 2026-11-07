@@ -1,0 +1,186 @@
+{
+  "_comment": "Single source of truth for clothing tags (spec ch.9). DB stores codes, UI shows labels. Copied to web/src/lib/taxonomy.json by scripts/sync-taxonomy.mjs.",
+  "categories": [
+    { "code": "outer", "label": "아우터" },
+    { "code": "top", "label": "상의" },
+    { "code": "bottom", "label": "하의" },
+    { "code": "dress", "label": "원피스" },
+    { "code": "shoes", "label": "신발" }
+  ],
+  "subcategories": {
+    "outer": [
+      { "code": "cardigan", "label": "가디건" },
+      { "code": "jacket", "label": "재킷" },
+      { "code": "blazer", "label": "블레이저" },
+      { "code": "trench_coat", "label": "트렌치코트" },
+      { "code": "coat", "label": "코트" },
+      { "code": "jumper", "label": "점퍼" },
+      { "code": "padding", "label": "패딩" },
+      { "code": "vest", "label": "베스트" }
+    ],
+    "top": [
+      { "code": "tshirt_short", "label": "반팔 티셔츠" },
+      { "code": "tshirt_long", "label": "긴팔 티셔츠" },
+      { "code": "shirt", "label": "셔츠" },
+      { "code": "blouse", "label": "블라우스" },
+      { "code": "knit", "label": "니트" },
+      { "code": "sweatshirt", "label": "맨투맨" },
+      { "code": "hoodie", "label": "후드" },
+      { "code": "sleeveless", "label": "민소매" }
+    ],
+    "bottom": [
+      { "code": "slacks", "label": "슬랙스" },
+      { "code": "denim", "label": "데님" },
+      { "code": "cotton_pants", "label": "면바지" },
+      { "code": "jogger", "label": "조거·트레이닝" },
+      { "code": "shorts", "label": "반바지" },
+      { "code": "mini_skirt", "label": "미니스커트" },
+      { "code": "midi_skirt", "label": "미디스커트" },
+      { "code": "long_skirt", "label": "롱스커트" }
+    ],
+    "dress": [
+      { "code": "mini_dress", "label": "미니 원피스" },
+      { "code": "midi_dress", "label": "미디 원피스" },
+      { "code": "long_dress", "label": "롱 원피스" },
+      { "code": "jumpsuit", "label": "점프수트" }
+    ],
+    "shoes": [
+      { "code": "sneakers", "label": "스니커즈" },
+      { "code": "loafers", "label": "로퍼" },
+      { "code": "flats", "label": "구두·플랫" },
+      { "code": "boots", "label": "부츠" },
+      { "code": "sandals", "label": "샌들" },
+      { "code": "slippers", "label": "슬리퍼" }
+    ]
+  },
+  "colors": [
+    { "code": "black", "label": "블랙", "hex": "#1f1f1f", "neutral": true, "family": "mono" },
+    { "code": "white", "label": "화이트", "hex": "#fafafa", "neutral": true, "family": "mono" },
+    { "code": "ivory", "label": "아이보리", "hex": "#f3ecdc", "neutral": true, "family": "warm_neutral" },
+    { "code": "beige", "label": "베이지", "hex": "#d9c4a3", "neutral": true, "family": "warm_neutral" },
+    { "code": "brown", "label": "브라운", "hex": "#7a5234", "neutral": true, "family": "warm_neutral" },
+    { "code": "gray", "label": "그레이", "hex": "#9a9ca1", "neutral": true, "family": "mono" },
+    { "code": "charcoal", "label": "차콜", "hex": "#45474d", "neutral": true, "family": "mono" },
+    { "code": "navy", "label": "네이비", "hex": "#23325a", "neutral": true, "family": "blue" },
+    { "code": "denim_blue", "label": "데님 블루", "hex": "#4a6a96", "neutral": true, "family": "blue" },
+    { "code": "blue", "label": "블루", "hex": "#2f63c7", "neutral": false, "family": "blue" },
+    { "code": "sky_blue", "label": "스카이블루", "hex": "#8fbbe6", "neutral": false, "family": "blue" },
+    { "code": "green", "label": "그린", "hex": "#3f8a52", "neutral": false, "family": "green" },
+    { "code": "khaki", "label": "카키", "hex": "#7b7a4e", "neutral": false, "family": "green" },
+    { "code": "red", "label": "레드", "hex": "#c23a36", "neutral": false, "family": "red" },
+    { "code": "pink", "label": "핑크", "hex": "#e9a3b5", "neutral": false, "family": "red" },
+    { "code": "purple", "label": "퍼플", "hex": "#7a55a8", "neutral": false, "family": "purple" },
+    { "code": "yellow", "label": "옐로", "hex": "#e9c63f", "neutral": false, "family": "yellow" },
+    { "code": "orange", "label": "오렌지", "hex": "#e07b33", "neutral": false, "family": "yellow" }
+  ],
+  "patterns": [
+    { "code": "solid", "label": "무지" },
+    { "code": "stripe", "label": "스트라이프" },
+    { "code": "check", "label": "체크" },
+    { "code": "dot", "label": "도트" },
+    { "code": "floral", "label": "플라워" },
+    { "code": "graphic", "label": "그래픽" },
+    { "code": "other", "label": "기타" }
+  ],
+  "seasons": [
+    { "code": "spring", "label": "봄" },
+    { "code": "summer", "label": "여름" },
+    { "code": "fall", "label": "가을" },
+    { "code": "winter", "label": "겨울" }
+  ],
+  "fits": {
+    "top": [
+      { "code": "slim", "label": "슬림" },
+      { "code": "regular", "label": "레귤러" },
+      { "code": "semi_over", "label": "세미오버" },
+      { "code": "over", "label": "오버" }
+    ],
+    "outer": [
+      { "code": "slim", "label": "슬림" },
+      { "code": "regular", "label": "레귤러" },
+      { "code": "semi_over", "label": "세미오버" },
+      { "code": "over", "label": "오버" }
+    ],
+    "bottom": [
+      { "code": "skinny", "label": "스키니" },
+      { "code": "slim", "label": "슬림" },
+      { "code": "straight", "label": "스트레이트" },
+      { "code": "wide", "label": "와이드" }
+    ],
+    "dress": [{ "code": "none", "label": "해당 없음" }],
+    "shoes": [{ "code": "none", "label": "해당 없음" }]
+  },
+  "style_tags": [
+    { "code": "minimal", "label": "미니멀" },
+    { "code": "casual", "label": "캐주얼" },
+    { "code": "street", "label": "스트릿" },
+    { "code": "office", "label": "오피스" },
+    { "code": "feminine", "label": "페미닌" },
+    { "code": "classic", "label": "클래식" },
+    { "code": "sporty", "label": "스포티" },
+    { "code": "vintage", "label": "빈티지" },
+    { "code": "french_chic", "label": "프렌치 시크" },
+    { "code": "amekaji", "label": "아메카지" }
+  ],
+  "formality": [
+    { "code": 1, "label": "캐주얼" },
+    { "code": 2, "label": "세미" },
+    { "code": 3, "label": "포멀" }
+  ],
+  "warmth": [
+    { "code": 1, "label": "얇음" },
+    { "code": 2, "label": "보통" },
+    { "code": 3, "label": "두꺼움" }
+  ],
+  "materials": [
+    { "code": "cotton", "label": "면" },
+    { "code": "knit", "label": "니트" },
+    { "code": "wool", "label": "울" },
+    { "code": "denim", "label": "데님" },
+    { "code": "linen", "label": "린넨" },
+    { "code": "leather", "label": "가죽" },
+    { "code": "synthetic", "label": "합성" },
+    { "code": "other", "label": "기타" }
+  ],
+  "body_traits": [
+    { "code": "narrow_shoulders", "label": "어깨가 좁은 편" },
+    { "code": "broad_shoulders", "label": "어깨가 넓은 편" },
+    { "code": "long_arms", "label": "팔이 긴 편" },
+    { "code": "long_torso", "label": "상체가 긴 편" },
+    { "code": "long_legs", "label": "하체가 긴 편" }
+  ],
+  "personal_colors": [
+    { "code": "spring_warm", "label": "봄 웜" },
+    { "code": "summer_cool", "label": "여름 쿨" },
+    { "code": "autumn_warm", "label": "가을 웜" },
+    { "code": "winter_cool", "label": "겨울 쿨" }
+  ],
+  "top_sizes": ["S", "M", "L", "XL"],
+  "occasions": [
+    "소개팅", "데이트", "출근", "회의", "면접", "학교", "친구 모임", "가족 모임",
+    "결혼식", "여행", "운동", "쇼핑", "일상"
+  ],
+  "today_moods": [
+    { "code": "neat", "label": "단정하게" },
+    { "code": "comfy", "label": "편하게" },
+    { "code": "dressy", "label": "꾸민 듯" },
+    { "code": "warm", "label": "따뜻하게" }
+  ],
+  "temp_bands": [
+    { "code": "t28", "label": "28° 이상", "temp": 29 },
+    { "code": "t23", "label": "23–27°", "temp": 25 },
+    { "code": "t20", "label": "20–22°", "temp": 21 },
+    { "code": "t17", "label": "17–19°", "temp": 18 },
+    { "code": "t12", "label": "12–16°", "temp": 14 },
+    { "code": "t9", "label": "9–11°", "temp": 10 },
+    { "code": "t5", "label": "5–8°", "temp": 7 },
+    { "code": "t4", "label": "4° 이하", "temp": 2 }
+  ],
+  "groups": [
+    { "code": "pants", "label": "바지", "subcategories": ["slacks", "denim", "cotton_pants", "jogger", "shorts"], "synonyms": ["바지", "팬츠", "바지류", "팬츠류", "긴바지"] },
+    { "code": "skirts", "label": "치마", "subcategories": ["mini_skirt", "midi_skirt", "long_skirt"], "synonyms": ["치마", "스커트", "치마류", "스커트류"] },
+    { "code": "dresses", "label": "원피스", "subcategories": ["mini_dress", "midi_dress", "long_dress", "jumpsuit"], "synonyms": ["원피스", "원피스류", "드레스"] },
+    { "code": "outerwear", "label": "아우터", "subcategories": ["cardigan", "jacket", "blazer", "trench_coat", "coat", "jumper", "padding", "vest"], "synonyms": ["아우터", "겉옷", "아우터류"] },
+    { "code": "tees", "label": "티셔츠", "subcategories": ["tshirt_short", "tshirt_long"], "synonyms": ["티셔츠", "티", "티셔츠류", "티류"] }
+  ]
+}

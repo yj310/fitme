@@ -1,0 +1,10 @@
+# Production mode models (spec 10.2). The server refuses to start if "nvidia" appears here.
+allowed_providers: [gemini, anthropic, openai]
+defaults:
+  chat:    { provider: gemini, model: gemini-3.8-flash }
+  tagging: { provider: gemini, model: gemini-3.5-flash-lite }
+  style:   { provider: gemini, model: gemini-3.8-flash }
+byok_choices:
+  gemini:    { chat: [gemini-3.8-flash], tagging: [gemini-3.5-flash-lite, gemini-3.8-flash], style: [gemini-3.8-flash] }
+  anthropic: { chat: [claude-sonnet-5-5], tagging: [claude-haiku-5-5], style: [claude-sonnet-5-5] }
+  openai:    { chat: [gpt-5.5], tagging: [gpt-5.5-mini], style: [gpt-5.5] }
