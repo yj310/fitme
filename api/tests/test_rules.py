@@ -153,3 +153,24 @@ def test_taxonomy_helpers():
 
 def test_counter_import_used():
     assert Counter("aa")["a"] == 2
+
+
+def test_weather_mismatch_costs_points():
+    base = dict(style_tags=set(), preferred_colors=set(), request_formality=None, wind=1, rainy=False,
+                preferred_fit=None, silhouette_top=set(), silhouette_bottom=set())
+    thin = [it("o", "outer", "jumper", "khaki", warmth=2), it("t", "top", "shirt", "white", warmth=1),
+            it("b", "bottom", "slacks", "black")]
+    warm = [it("o2", "outer", "coat", "beige", warmth=3), it("t2", "top", "knit", "ivory", warmth=3),
+            it("b", "bottom", "slacks", "black")]
+    w = {"style": 0.35, "harmony": 0.25, "situation": 0.2, "preference": 0.2}
+    cold = rules.ScoreContext(temp=1, **base)
+    assert rules.score_outfit(warm, cold, w)[0] - rules.score_outfit(thin, cold, w)[0] >= 6
+
+
+def test_pick_top3_prefers_variety_on_close_scores():
+    blazer, slacks = it("o", "outer", "blazer", "navy"), it("b", "bottom", "slacks", "black")
+    t1, t2, t3 = (it(f"t{n}", "top", "shirt", "white") for n in (1, 2, 3))
+    dress = it("d", "dress", "midi_dress", "navy")
+    same = [(81, [blazer, t, slacks], n) for n, t in enumerate((t1, t2, t3))]
+    picked = rules.pick_top3(same + [(78, [dress], "dress")])
+    assert "dress" in [p[2] for p in picked]

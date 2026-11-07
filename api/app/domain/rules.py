@@ -241,19 +241,26 @@ class ScoreContext:
     favorite_item_ids: Counter = field(default_factory=Counter)
     favorite_colors: Counter = field(default_factory=Counter)
     rerolled_pairs: set[frozenset[str]] = field(default_factory=set)
+    want_accent: bool = False        # "너무 무난해": prefer one point color or pattern
 
 
 LIGHT_COLORS = {"white", "ivory", "beige", "sky_blue", "pink", "yellow"}
+SHARED_PIECE_PENALTY = 3   # points lost per piece already shown in a higher-ranked card
 
 
 def _style_score(items: list[Item], ctx: ScoreContext) -> float:
     if not ctx.style_tags and not ctx.preferred_colors:
-        return 60.0
-    tag_ratio = (sum(1 for i in items if set(i.get("style_tags") or []) & ctx.style_tags) / len(items)
-                 if ctx.style_tags else 0.5)
-    color_ratio = (sum(1 for i in items if i["color"] in ctx.preferred_colors) / len(items)
-                   if ctx.preferred_colors else 0.5)
-    return 100 * (0.6 * tag_ratio + 0.4 * color_ratio)
+        base = 60.0
+    else:
+        tag_ratio = (sum(1 for i in items if set(i.get("style_tags") or []) & ctx.style_tags) / len(items)
+                     if ctx.style_tags else 0.5)
+        color_ratio = (sum(1 for i in items if i["color"] in ctx.preferred_colors) / len(items)
+                       if ctx.preferred_colors else 0.5)
+        base = 100 * (0.6 * tag_ratio + 0.4 * color_ratio)
+    if ctx.want_accent:  # "너무 무난해": one point color or pattern is what the user asked for
+        accent = any(i["color"] not in tx.NEUTRAL_COLORS or i.get("pattern", "solid") != "solid" for i in items)
+        base = base + 25 if accent else base - 20
+    return max(0.0, min(100.0, base))
 
 
 def _band_fit(items: list[Item], ctx: ScoreContext) -> float:
@@ -302,7 +309,7 @@ def _situation_score(items: list[Item], ctx: ScoreContext) -> float:
         formal = max(0.0, 1 - abs(avg - ctx.request_formality) / 2)
     else:
         formal = 0.8
-    return 100 * (0.5 * formal + 0.3 * _band_fit(items, ctx) + 0.2 * _weather_fit(items, ctx))
+    return 100 * (0.35 * formal + 0.5 * _band_fit(items, ctx) + 0.15 * _weather_fit(items, ctx))
 
 
 def _preference_score(items: list[Item], ctx: ScoreContext) -> float:
@@ -349,17 +356,25 @@ def main_piece(items: list[Item]) -> str | None:
     return None
 
 
-def pick_top3(scored: list[tuple[float, list[Item], Any]]) -> list[tuple[float, list[Item], Any]]:
-    """Highest scores first; skip an outfit whose top/dress is already used (8.2 diversity)."""
-    chosen, used = [], set()
-    for entry in sorted(scored, key=lambda e: -e[0]):
-        mp = main_piece(entry[1])
-        if mp in used:
-            continue
-        chosen.append(entry)
-        used.add(mp)
-        if len(chosen) == 3:
+def pick_top3(scored: list[tuple[float, list[Item], Any]],
+              key: Callable[[list[Item]], Any] = None) -> list[tuple[float, list[Item], Any]]:
+    """Best first, never two outfits with the same key (default: same top/dress, 8.2 diversity).
+    Each pick also pays a small price for every piece it shares with outfits already picked, so the
+    three cards don't all reuse one blazer, one pair of slacks and one pair of loafers."""
+    key = key or main_piece
+    chosen: list = []
+    used: set = set()
+    shown: Counter = Counter()
+    pool = sorted(scored, key=lambda e: -e[0])
+    while pool and len(chosen) < 3:
+        best = max((e for e in pool if key(e[1]) not in used),
+                   key=lambda e: e[0] - SHARED_PIECE_PENALTY * sum(shown[i["id"]] for i in e[1]), default=None)
+        if best is None:
             break
+        chosen.append(best)
+        used.add(key(best[1]))
+        shown.update(i["id"] for i in best[1])
+        pool.remove(best)
     return chosen
 
 
