@@ -46,6 +46,17 @@ class Adapter(Protocol):
     async def ping(self, model: str) -> None: ...
 
 
+def error_detail(r) -> str:
+    """Short, key-free reason from a provider error response, for logs."""
+    try:
+        j = r.json()
+        msg = (j.get("error") or {}).get("message") if isinstance(j.get("error"), dict) else None
+        msg = msg or j.get("detail") or j.get("title") or j.get("message") or ""
+    except ValueError:
+        msg = r.text
+    return f"{r.status_code} {str(msg)[:120]}".strip()
+
+
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
 

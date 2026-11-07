@@ -120,7 +120,7 @@ async def parse_request(llm: LLMService, message: str, recent: list[str], curren
     user = (f"<recent>\n{chr(10).join(recent[-6:])}\n</recent>\n"
             f"<current_outfits>\n{refs}\n</current_outfits>\n"
             f"<user_message>\n{message}\n</user_message>")
-    res = await llm.call_json("chat", system=system, user=user, schema=PARSE_SCHEMA, max_tokens=800)
+    res = await llm.call_json("chat", system=system, user=user, schema=PARSE_SCHEMA, max_tokens=4000)
     return normalize_parse(res.data, today, {c["ref"] for c in current_items})
 
 
@@ -156,7 +156,7 @@ def _validate_gen(data: dict) -> None:
 async def generate_outfits(llm: LLMService, payload: dict, count: int = 6) -> dict:
     system = _prompt("generate_outfits").format(count=count)
     user = json.dumps(payload, ensure_ascii=False)
-    res = await llm.call_json("chat", system=system, user=user, schema=GEN_SCHEMA, max_tokens=3000,
+    res = await llm.call_json("chat", system=system, user=user, schema=GEN_SCHEMA, max_tokens=8000,
                               validate=_validate_gen)
     data = res.data
     outfits = []
@@ -183,7 +183,7 @@ async def tag_clothing_image(llm: LLMService, image: bytes, mime: str) -> tuple[
         colors=_codes(tx.COLORS), patterns=_codes(tx.PATTERNS), fit_top=_codes(tx.FITS["top"]),
         fit_bottom=_codes(tx.FITS["bottom"]), materials=_codes(tx.MATERIALS), style_tags=_codes(tx.STYLE_TAGS))
     res = await llm.call_json("tagging", system=system, user="이 옷 사진의 태그를 JSON으로 알려주세요.",
-                              schema=tx.tagging_json_schema(), images=[Image(image, mime)], max_tokens=800)
+                              schema=tx.tagging_json_schema(), images=[Image(image, mime)], max_tokens=4000)
     clean, invalid = tx.normalize_tags(res.data)
     raw_conf = res.data.get("confidence") or {}
     conf = {}
@@ -239,6 +239,6 @@ async def analyze_style(llm: LLMService, text: str) -> tuple[str, dict]:
         style_tags=_codes(tx.STYLE_TAGS), colors=_codes(tx.COLORS), fit_top=_codes(tx.FITS["top"]),
         fit_bottom=_codes(tx.FITS["bottom"]), subcategories=_codes(tx.SUBCATEGORY_TO_CATEGORY))
     res = await llm.call_json("style", system=system, user=f"<style_text>\n{text}\n</style_text>",
-                              schema=STYLE_SCHEMA, max_tokens=800)
+                              schema=STYLE_SCHEMA, max_tokens=4000)
     name = str(res.data.get("style_name") or text)[:30]
     return name, clean_attributes(res.data)

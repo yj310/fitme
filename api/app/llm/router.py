@@ -153,7 +153,7 @@ class LLMService:
                 res.notices = list(self.notices)
                 return res
             except LLMError as e:
-                log.info("llm %s failed on %r: %s", task, route, e.kind)
+                log.info("llm %s failed on %r: %s (%s)", task, route, e.kind, e.detail)
                 if e.kind == "bad_output" and not parse_retried:
                     parse_retried = True
                     continue

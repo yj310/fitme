@@ -182,7 +182,8 @@ def weather_rule(temp: float | None, wind: float | None) -> str:
     outer = {"none": "아우터 없음", "light": "가벼운 아우터(warmth 1)는 선택",
              "optional": f"아우터 선택(warmth {b.outer_warmth[0]}–{b.outer_warmth[1]})",
              "required": f"아우터 필수(warmth {b.outer_warmth[0]}–{b.outer_warmth[1]})"}[b.outer]
-    return f"{b.label} 구간: 상의 warmth {b.top[0]}–{b.top[1]}, {outer}"
+    return (f"{b.label} 구간: 상의 warmth {b.top[0]}–{b.top[1]}, {outer}. "
+            "아우터를 입으면 상의는 한 단계 얇아도 됨(레이어드)")
 
 
 # ───────────────────────── validate + score ─────────────────────────

@@ -122,9 +122,10 @@ async def generate_outfits(state: GraphState, config) -> GraphState:
     r.gen_summary = out.get("summary")
     r.llm_provider, r.llm_model = out["provider"], out["model"]
     if out.get("ask") and not out["outfits"]:
-        r.ask = {"kind": "clarify", **out["ask"]}
-        r.step_done(t, "generate_outfits", "조건 확인 필요")
-        return {"has_ask": True}
+        # Ask only when the closet really can't make an outfit: let the rules try first (score_rank).
+        r.model_ask = {"kind": "clarify", **out["ask"]}
+        r.step_done(t, "generate_outfits", "AI가 조건 확인 요청 · 규칙으로 조합 확인")
+        return {"llm_failed": True}
     r.step_done(t, "generate_outfits", f"후보 {len(out['outfits'])}개")
     return {"llm_failed": False}
 
@@ -174,6 +175,10 @@ async def score_rank(state: GraphState, config) -> GraphState:
     if not r.final:
         r.step_fail(t, "score_outfits", "조건에 맞는 조합 없음")
         reason = rules.describe_fails(r.fails[:2]) if r.fails else ""
+        if r.model_ask:
+            r.ask = r.model_ask
+            r.debug_reason = reason
+            return {"has_ask": True}
         r.ask = {"kind": "clarify", "question": "조건을 모두 맞추는 조합을 찾지 못했어요. "
                  + ("기온에 맞는 아우터가 부족해요. " if any("OUTER" in f for f in r.fails) else "")
                  + "조건을 하나 풀어 볼까요?", "options": ["제외 조건 풀어줘", "날씨는 신경 쓰지 마"]}

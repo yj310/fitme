@@ -6,7 +6,7 @@ import base64
 
 import httpx
 
-from app.llm.base import LLMError, LLMResult, parse_json_text
+from app.llm.base import LLMError, LLMResult, error_detail, parse_json_text
 
 BASE = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -58,7 +58,7 @@ class GeminiAdapter:
         if r.status_code in (401, 403) or (r.status_code == 400 and "API_KEY" in r.text):
             raise LLMError("auth", str(r.status_code))
         if r.status_code >= 500:
-            raise LLMError("unavailable", str(r.status_code))
+            raise LLMError("unavailable", error_detail(r))
         if r.status_code >= 400:
-            raise LLMError("bad_request", str(r.status_code))
+            raise LLMError("bad_request", error_detail(r))
         return r.json()

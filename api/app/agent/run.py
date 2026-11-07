@@ -79,6 +79,7 @@ class AgentRun:
         self.llm_model: str | None = None
         self.used_rules_fill = False
         self.debug_reason = ""
+        self.model_ask: dict | None = None  # AI wanted to ask; used only if rules find nothing
         self.weather: dict | None = None
         self.temp: float | None = None
         self.wind: float | None = None
@@ -318,11 +319,23 @@ class AgentRun:
         else:
             name = (self.uc.style or {}).get("style_name")
             head = f"{name}로 {n}개 골랐어요." if name else f"코디 {n}개 골랐어요."
-        text = head + (" " + self.gen_summary if self.gen_summary and not self.used_rules_fill else "")
+        text = head + " " + self._set_summary()
         if missing:
             cats = ", ".join(tx.CATEGORY_LABEL[m["category"]] for m in missing)
             text += f" 옷장에 {cats}이(가) 부족해서 {n}개만 만들었어요."
         return text.strip()
+
+    def _set_summary(self) -> str:
+        """The AI's one-line summary describes ITS proposals in ITS order. Use it only when the final
+        top-3 are exactly those; otherwise (reranked, rules fill) describe the final cards from their titles."""
+        if not self.final:
+            return ""
+        alias = self.search.alias if self.search else {}
+        final_sets = [frozenset(alias.get(i["id"], i["id"]) for i in e.items) for e in self.final]
+        model_sets = [frozenset(o.get("items") or []) for o in (self.raw or [])]
+        if self.gen_summary and not self.used_rules_fill and final_sets == model_sets[:len(final_sets)]:
+            return self.gen_summary
+        return ", ".join(f"{k}번은 {e.title}" for k, e in enumerate(self.final, 1)) + "."
 
     async def respond(self) -> None:
         version = int(self.state.get("version", 0)) + 1

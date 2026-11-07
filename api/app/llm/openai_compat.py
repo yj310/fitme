@@ -6,7 +6,7 @@ import base64
 
 import httpx
 
-from app.llm.base import Image, LLMError, LLMResult, parse_json_text, schema_hint
+from app.llm.base import Image, LLMError, LLMResult, error_detail, parse_json_text, schema_hint
 
 OPENAI_BASE = "https://api.openai.com/v1"
 NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"
@@ -42,13 +42,17 @@ class OpenAICompatAdapter:
             body["max_tokens"] = max_tokens
             body["temperature"] = 0.3
             body["response_format"] = {"type": "json_object"}
-        try:
-            data = await self._post(body)
-        except LLMError as e:
-            if e.kind != "bad_request" or "response_format" not in body:
-                raise
-            body.pop("response_format")  # some NVIDIA models don't support it; rely on the prompt
-            data = await self._post(body)
+            # Reasoning models think for 20-30s before answering; these tasks don't need it (spec 14.1).
+            body["chat_template_kwargs"] = {"enable_thinking": False}
+        data = None
+        for optional in ("chat_template_kwargs", "response_format", None):
+            try:
+                data = await self._post(body)
+                break
+            except LLMError as e:
+                if e.kind != "bad_request" or optional is None or optional not in body:
+                    raise
+                body.pop(optional)  # some NVIDIA models reject it; retry without
         try:
             text = data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as e:
@@ -76,7 +80,7 @@ class OpenAICompatAdapter:
         if r.status_code in (401, 403):
             raise LLMError("auth", str(r.status_code))
         if r.status_code >= 500:
-            raise LLMError("unavailable", str(r.status_code))
+            raise LLMError("unavailable", error_detail(r))
         if r.status_code >= 400:
-            raise LLMError("bad_request", str(r.status_code))
+            raise LLMError("bad_request", error_detail(r))
         return r.json()
