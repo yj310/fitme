@@ -105,7 +105,11 @@ cd api && uv run python eval/run.py
 ```bash
 cd api && uv run python eval/run.py --llm live --env production --tagging
 ```
+```bash
+cd api && uv run python eval/run.py --llm live --parse
+```
 - 기본(`offline`)은 AI 없이 규칙만으로 검증 지표(ID 유효성, 제외 재추천, 3개 생성)를 확인한다.
+- `--parse`는 "바지 빼줘" 같은 제외 표현 30개를 실제 AI로 해석해 인식률을 본다 (`eval/parse/cases.jsonl`).
 - `--llm live`는 `config/models.{env}.yaml`의 실제 모델을 쓴다. 매주 1회 `--env production`으로 실행해 개발·운영 모델 차이를 본다 (요구서 10.3).
 
 ## 5. 배포

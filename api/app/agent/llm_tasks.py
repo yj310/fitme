@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from app.domain import taxonomy as tx
+from app.errors import ApiError
 from app.llm.base import Image, LLMError
 from app.llm.router import LLMService
 
@@ -30,7 +31,8 @@ def _codes(xs) -> str:
 
 # ───────────────────────── parse_request ─────────────────────────
 
-_REF = {"type": "object", "properties": {"type": {"type": "string", "enum": ["subcategory", "item", "color"]},
+_REF = {"type": "object", "properties": {"type": {"type": "string",
+                                                  "enum": ["subcategory", "group", "item", "color"]},
                                          "value": {"type": "string"}}, "required": ["type", "value"]}
 PARSE_SCHEMA = {
     "type": "object",
@@ -54,8 +56,22 @@ PARSE_SCHEMA = {
                  "include", "exclude", "feedback"],
 }
 
-FEEDBACK_TYPES = {"exclude_item", "exclude_subcategory", "include_item", "change_style", "warmer", "cooler",
-                  "more_formal", "more_casual", "other"}
+FEEDBACK_TYPES = {"exclude_item", "exclude_subcategory", "exclude_group", "exclude_color", "include_item",
+                  "change_style", "warmer", "cooler", "more_formal", "more_casual", "other"}
+EXCLUDE_TYPES = {"item": "exclude_item", "subcategory": "exclude_subcategory", "group": "exclude_group",
+                 "color": "exclude_color"}
+
+
+def _subcategory_list() -> str:
+    return ", ".join(f"{c}({tx.SUBCATEGORY_LABEL[c]})" for c in tx.SUBCATEGORY_TO_CATEGORY)
+
+
+def _group_list() -> str:
+    return "; ".join(f"{g}({tx.GROUP_LABEL[g]}) = {', '.join(subs)}" for g, subs in tx.GROUPS.items())
+
+
+def _color_list() -> str:
+    return ", ".join(f"{c}({tx.COLOR_LABEL[c]})" for c in tx.COLORS)
 
 
 def _clean_refs(refs: list, item_refs: set[str]) -> list[dict]:
@@ -66,6 +82,8 @@ def _clean_refs(refs: list, item_refs: set[str]) -> list[dict]:
         t, v = r.get("type"), r.get("value")
         if t == "item" and v in item_refs:
             out.append({"type": "item", "value": v})
+        elif t in ("subcategory", "group") and tx.to_group(v):
+            out.append({"type": "group", "value": tx.to_group(v)})
         elif t in ("subcategory", "color"):
             code = tx.to_code(v)
             if t == "subcategory" and code in tx.SUBCATEGORY_TO_CATEGORY or t == "color" and code in tx.COLOR_LABEL:
@@ -73,7 +91,33 @@ def _clean_refs(refs: list, item_refs: set[str]) -> list[dict]:
     return out
 
 
-def normalize_parse(raw: dict, today: date, item_refs: set[str]) -> dict:
+def _add_rule_exclusions(p: dict, message: str, has_current: bool) -> None:
+    """Safety net: clear removals in the message ("바지 빼줘") that the model missed.
+    Group words are always added; single kinds only when the model found nothing to remove."""
+    found = tx.find_excluded_terms(message)
+    if not found:
+        return
+    covered = exclusion_targets(p)
+    added = []
+    for ref in found:
+        subs = set(tx.GROUPS[ref["value"]]) if ref["type"] == "group" else {ref["value"]}
+        if subs <= covered:
+            continue
+        if ref["type"] == "group" or not covered:
+            p["exclude"].append(ref)
+            added.append(ref)
+    gone = exclusion_targets(p)
+    p["include"] = [r for r in p["include"] if r["type"] != "subcategory" or r["value"] not in gone]
+    if added and p["intent"] == "new_request" and has_current and not p["occasion"] and not p["date"]:
+        p["intent"] = "feedback"  # "바지 빼줘" right after outfits = a change to them, not a new request
+    if added and p["intent"] in ("new_request", "feedback"):
+        fb = p.get("feedback")
+        if p["intent"] == "feedback" and (not fb or fb["type"] == "other" or not fb.get("target")
+                                           or added[0]["type"] == "group"):
+            p["feedback"] = {"type": EXCLUDE_TYPES[added[0]["type"]], "target": added[0]["value"]}
+
+
+def normalize_parse(raw: dict, today: date, item_refs: set[str], message: str = "") -> dict:
     p: dict[str, Any] = {"intent": raw.get("intent") if raw.get("intent") in
                          ("new_request", "feedback", "question", "other") else "new_request"}
     try:
@@ -94,34 +138,89 @@ def normalize_parse(raw: dict, today: date, item_refs: set[str]) -> dict:
     p["exclude"] = _clean_refs(raw.get("exclude"), item_refs)
     fb = raw.get("feedback")
     if isinstance(fb, dict) and fb.get("type") in FEEDBACK_TYPES:
-        target = fb.get("target")
+        ftype, target = fb["type"], fb.get("target")
         if target and target not in item_refs:
-            target = tx.to_code(target) or target
-        p["feedback"] = {"type": fb["type"], "target": target}
+            group, code = tx.to_group(target), tx.to_code(target)
+            if group:
+                target = group
+            elif code in tx.SUBCATEGORY_TO_CATEGORY or code in tx.COLOR_LABEL:
+                target = code
+            else:
+                target = None  # unknown word: never act on a code we don't have
+        if ftype.startswith("exclude_") and target:
+            kind = ("item" if target in item_refs else "group" if target in tx.GROUPS
+                    else "color" if target in tx.COLOR_LABEL else "subcategory")
+            ftype = EXCLUDE_TYPES[kind]
+        p["feedback"] = {"type": ftype, "target": target}
     else:
         p["feedback"] = None
+    fb = p["feedback"]
+    if p["exclude"] and (fb is None and p["intent"] == "feedback"
+                         or fb and fb["type"].startswith("exclude_") and not fb["target"]):
+        e = p["exclude"][0]
+        p["feedback"] = {"type": EXCLUDE_TYPES[e["type"]], "target": e["value"]}
+    _add_rule_exclusions(p, message, bool(item_refs))
     if p["intent"] == "feedback" and not p["feedback"]:
-        if p["exclude"]:
-            e = p["exclude"][0]
-            p["feedback"] = {"type": "exclude_item" if e["type"] == "item" else "exclude_subcategory",
-                             "target": e["value"]}
-        else:
-            p["feedback"] = {"type": "other", "target": None}
+        p["feedback"] = {"type": "other", "target": None}
     return p
+
+
+def exclusion_targets(p: dict) -> set[str]:
+    """Everything a parsed request removes: subcategory codes (groups expanded), color codes, item refs."""
+    out: set[str] = set()
+    refs = list(p.get("exclude") or [])
+    fb = p.get("feedback") or {}
+    if str(fb.get("type", "")).startswith("exclude_") and fb.get("target"):
+        refs.append({"type": fb["type"].removeprefix("exclude_"), "value": fb["target"]})
+    for r in refs:
+        t, v = r.get("type"), r.get("value")
+        if t == "group" and v in tx.GROUPS:
+            out |= set(tx.GROUPS[v])
+        elif t == "subcategory" and v in tx.GROUPS:
+            out |= set(tx.GROUPS[v])
+        elif v:
+            out.add(v)
+    return out
 
 
 async def parse_request(llm: LLMService, message: str, recent: list[str], current_items: list[dict],
                         today: date) -> dict:
     system = _prompt("parse_request").format(
         today=today.isoformat(), weekday=WEEKDAYS[today.weekday()], occasions=_codes(tx.OCCASIONS),
-        style_tags=_codes(tx.STYLE_TAGS), subcategories=_codes(tx.SUBCATEGORY_TO_CATEGORY),
-        colors=_codes(tx.COLORS))
+        style_tags=_codes(tx.STYLE_TAGS), subcategories=_subcategory_list(), groups=_group_list(),
+        colors=_color_list())
     refs = "\n".join(f"{c['ref']}: {c['name']} ({c['subcategory']}, {c['color']})" for c in current_items)
     user = (f"<recent>\n{chr(10).join(recent[-6:])}\n</recent>\n"
             f"<current_outfits>\n{refs}\n</current_outfits>\n"
             f"<user_message>\n{message}\n</user_message>")
-    res = await llm.call_json("chat", system=system, user=user, schema=PARSE_SCHEMA, max_tokens=4000)
-    return normalize_parse(res.data, today, {c["ref"] for c in current_items})
+    refs_set = {c["ref"] for c in current_items}
+    try:
+        res = await llm.call_json("chat", system=system, user=user, schema=PARSE_SCHEMA, max_tokens=4000)
+    except ApiError as e:
+        # Free AI busy: requests the rules understand ("바지 빼줘", "내일 소개팅") still go through.
+        if e.code != "AI_UNAVAILABLE":
+            raise
+        fallback = rule_parse(message, today, refs_set)
+        if fallback is None:
+            raise
+        return fallback
+    return normalize_parse(res.data, today, refs_set, message)
+
+
+def rule_parse(message: str, today: date, item_refs: set[str]) -> dict | None:
+    """Parse without the model: clear removals, a known occasion, 오늘/내일/모레. None if nothing is clear."""
+    from datetime import timedelta
+
+    raw: dict[str, Any] = {"intent": "new_request"}
+    occ = next((o for o in tx.OCCASIONS if o in message), None)
+    raw["occasion"] = occ
+    day = next((n for w, n in (("모레", 2), ("내일", 1), ("오늘", 0)) if w in message), None)
+    if day is not None:
+        raw["date"] = (today + timedelta(days=day)).isoformat()
+    p = normalize_parse(raw, today, item_refs, message)
+    if not exclusion_targets(p) and not occ:
+        return None
+    return p
 
 
 # ───────────────────────── generate_outfits ─────────────────────────

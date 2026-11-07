@@ -110,6 +110,8 @@ def effective_exclusions(c: Constraints, uc: UserContext, occasion: str | None) 
             ids.add(target)
         elif t == "exclude_subcategory":
             subs.add(target)
+        elif t == "exclude_group":
+            subs |= set(tx.GROUPS.get(target, []))
         elif t == "exclude_color":
             colors.add(target)
     # an explicit "include" in this conversation wins over a general avoid list

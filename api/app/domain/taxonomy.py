@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -43,6 +44,9 @@ TODAY_MOODS = {m["code"]: m["label"] for m in raw()["today_moods"]}
 TEMP_BANDS = {t["code"]: t for t in raw()["temp_bands"]}
 
 ROLE_ORDER = ["outer", "top", "bottom", "dress", "shoes"]
+# Words people use for several subcategories at once ("바지" = slacks, denim, ...).
+GROUPS: dict[str, list[str]] = {g["code"]: g["subcategories"] for g in raw().get("groups", [])}
+GROUP_LABEL = {g["code"]: g["label"] for g in raw().get("groups", [])}
 
 # Korean label → code, for LLM outputs that use labels instead of codes.
 _LABEL_TO_CODE: dict[str, str] = {}
@@ -52,10 +56,13 @@ for _m in (SUBCATEGORY_LABEL, COLOR_LABEL, PATTERN_LABEL, STYLE_LABEL, MATERIAL_
 # Common synonyms people type in chat.
 _SYNONYMS = {
     "청바지": "denim", "진": "denim", "데님팬츠": "denim", "슬랙스": "slacks", "정장바지": "slacks",
-    "치마": "midi_skirt", "스커트": "midi_skirt", "티": "tshirt_short", "티셔츠": "tshirt_short",
-    "반팔": "tshirt_short", "긴팔": "tshirt_long", "후드티": "hoodie", "후디": "hoodie",
-    "운동화": "sneakers", "구두": "flats", "플랫": "flats", "코트": "coat", "패딩": "padding",
-    "트렌치": "trench_coat", "원피스": "midi_dress", "반바지": "shorts", "청": "denim_blue",
+    "반팔": "tshirt_short", "반팔티": "tshirt_short", "긴팔": "tshirt_long", "긴팔티": "tshirt_long",
+    "후드티": "hoodie", "후디": "hoodie", "운동화": "sneakers", "구두": "flats", "플랫": "flats",
+    "플랫슈즈": "flats", "단화": "flats", "힐": "flats", "코트": "coat", "패딩": "padding",
+    "트렌치": "trench_coat", "반바지": "shorts", "청": "denim_blue", "조거": "jogger", "조거팬츠": "jogger",
+    "트레이닝": "jogger", "트레이닝복": "jogger", "트레이닝바지": "jogger", "츄리닝": "jogger",
+    "추리닝": "jogger", "카디건": "cardigan", "자켓": "jacket", "점프슈트": "jumpsuit",
+    "흰": "white", "하얀": "white", "검은": "black", "까만": "black",
     "회색": "gray", "검정": "black", "검은색": "black", "흰색": "white", "하얀색": "white",
     "남색": "navy", "베이지색": "beige", "갈색": "brown", "빨간색": "red", "분홍": "pink",
     "초록": "green", "노란색": "yellow", "파란색": "blue", "하늘색": "sky_blue",
@@ -75,9 +82,74 @@ def to_code(value: str | None) -> str | None:
     return _LABEL_TO_CODE.get(key) or _SYNONYMS.get(key)
 
 
+# Group words: Korean synonyms, group codes, and English/category words models sometimes return.
+_GROUP_WORDS: dict[str, str] = {}
+for _g in raw().get("groups", []):
+    _GROUP_WORDS[_g["code"]] = _g["code"]
+    for _w in _g["synonyms"]:
+        _GROUP_WORDS[_w.replace(" ", "")] = _g["code"]
+_GROUP_WORDS.update({"skirt": "skirts", "dress": "dresses", "outer": "outerwear", "pant": "pants",
+                     "trousers": "pants", "tshirt": "tees", "tshirts": "tees"})
+
+
+def to_group(value: str | None) -> str | None:
+    """Group code for words like 바지/치마/원피스/아우터/티셔츠 (or skirt, dress, outer), else None."""
+    if not value:
+        return None
+    return _GROUP_WORDS.get(str(value).strip().lower().replace(" ", ""))
+
+
+# Phrases that clearly remove something: "<term>(particles) 빼/말고/싫어/안 입어/없이/제외".
+_CUE = r"(?:빼|뺴|말고|싫|안\s*입|안입|안\s*신|안신|없이|제외|추천하지\s*마|추천\s*하지\s*마|넣지\s*마|금지|별로)"
+_PARTICLES = r"(?:\s*(?:은|는|이|가|을|를|도|만|류|류는|류도|종류는|같은\s*건|같은\s*거|들은|들도))*"
+_JOIN = r"\s*(?:이랑|랑|이나|나|하고|과|와|,|/|및)\s*"
+_VERB = r"(?:\s*(?:입기|신기|입는\s*건|신는\s*건|입는\s*거|신는\s*거|는|은|도|좀|너무|진짜|다|모두|전부|둘\s*다|그냥|옷|옷은|옷들은|절대|아예|제발|이제|앞으로))*"
+
+
+def _term_index() -> list[tuple[str, str, str]]:
+    """(surface word, kind, code), longest words first so 면바지 wins over 바지."""
+    out: dict[str, tuple[str, str]] = {}
+    for w, g in _GROUP_WORDS.items():
+        if re.fullmatch(r"[가-힣]+", w) and len(w) >= 2:
+            out[w] = ("group", g)
+    for code, lab in SUBCATEGORY_LABEL.items():
+        for w in lab.replace("·", " ").split():
+            out.setdefault(w, ("subcategory", code))
+    for w, code in _SYNONYMS.items():
+        kind = "color" if code in COLOR_LABEL else "subcategory"
+        if len(w) >= 2:
+            out.setdefault(w, (kind, code))
+    for code, lab in COLOR_LABEL.items():
+        if len(lab) >= 2:
+            out.setdefault(lab, ("color", code))
+    return sorted(((w, k, c) for w, (k, c) in out.items()), key=lambda x: -len(x[0]))
+
+
+_TERMS = _term_index()
+_TERM_RE = "|".join(re.escape(w) for w, _, _ in _TERMS)
+_TERM_KIND = {w: (k, c) for w, k, c in _TERMS}
+_EXCLUDE_RE = re.compile(rf"(?<![그이저]\s)(?<!번\s)((?:{_TERM_RE}){_PARTICLES}(?:{_JOIN}(?:{_TERM_RE}){_PARTICLES})*)"
+                         rf"{_VERB}\s*{_CUE}")
+
+
+def find_excluded_terms(message: str) -> list[dict]:
+    """Rule-based safety net for the parser: things the message clearly removes.
+    Returns refs like {"type": "group", "value": "pants"}. Skips "그/이/저 코트" (a specific item)."""
+    refs: list[dict] = []
+    for m in _EXCLUDE_RE.finditer(message or ""):
+        for w in re.findall(_TERM_RE, m.group(1)):
+            kind, code = _TERM_KIND[w]
+            ref = {"type": kind, "value": code}
+            if ref not in refs:
+                refs.append(ref)
+    return refs
+
+
 def label(code: str | None) -> str:
     if not code:
         return ""
+    if code in GROUP_LABEL:
+        return GROUP_LABEL[code]
     for m in (SUBCATEGORY_LABEL, COLOR_LABEL, CATEGORY_LABEL, STYLE_LABEL, PATTERN_LABEL,
               MATERIAL_LABEL, FIT_LABEL, SEASON_LABEL, BODY_TRAIT_LABEL):
         if code in m:

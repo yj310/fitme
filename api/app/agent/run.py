@@ -130,17 +130,19 @@ class AgentRun:
         self.season = rules.season_for(date.fromisoformat(self.request["date"]))
         c = self.constraints
         for ref in p.get("exclude", []):
-            if ref["type"] == "subcategory":
-                c.exclude_subcategories.add(ref["value"])
-                c.include_subcategories.discard(ref["value"])
+            if ref["type"] in ("subcategory", "group"):
+                subs = set(tx.GROUPS[ref["value"]]) if ref["type"] == "group" else {ref["value"]}
+                c.exclude_subcategories |= subs
+                c.include_subcategories -= subs
             elif ref["type"] == "color":
                 c.exclude_colors.add(ref["value"])
             elif ref["type"] == "item" and ref["value"] in self.ref_map:
                 c.exclude_item_ids.add(self.ref_map[ref["value"]]["id"])
         for ref in p.get("include", []):
-            if ref["type"] == "subcategory":
-                c.include_subcategories.add(ref["value"])
-                c.exclude_subcategories.discard(ref["value"])
+            if ref["type"] in ("subcategory", "group"):
+                subs = set(tx.GROUPS[ref["value"]]) if ref["type"] == "group" else {ref["value"]}
+                c.include_subcategories |= subs
+                c.exclude_subcategories -= subs
             elif ref["type"] == "item" and ref["value"] in self.ref_map:
                 c.include_item_ids.add(self.ref_map[ref["value"]]["id"])
         if feedback:
@@ -168,6 +170,7 @@ class AgentRun:
         name = self._target_label(target)
         return {
             "exclude_item": f"{name} 제외", "exclude_subcategory": f"{name} 제외", "exclude_color": f"{name} 제외",
+            "exclude_group": f"{name} 전체 제외",
             "include_item": f"{name} 포함", "warmer": "더 따뜻하게", "cooler": "더 시원하게",
             "more_formal": "더 단정하게", "more_casual": "더 편하게", "change_style": "스타일 변경",
             "reroll": "다시 짜기", "other": "요청 반영",
@@ -177,6 +180,12 @@ class AgentRun:
         fb = self.pending_feedback or {"type": "other", "target": None}
         c = self.constraints
         t, target = fb["type"], fb.get("target")
+        if t.startswith("exclude_") and not target:
+            # We don't know what to remove: ask instead of pretending ("말씀하신 대로 다시 짰어요").
+            kinds = list(dict.fromkeys(tx.label(i["subcategory"]) for i in self.ref_map.values()))[:4]
+            self.ask = {"kind": "clarify", "question": "어떤 옷을 뺄까요? 종류나 색으로 말해 주세요.",
+                        "options": [f"{k} 빼줘" for k in kinds] or ["바지 빼줘", "치마 빼줘"]}
+            return "무엇을 뺄지 확인 필요"
         real_target = target
         if t == "exclude_item" and target in self.ref_map:
             real_target = self.ref_map[target]["id"]
@@ -186,6 +195,9 @@ class AgentRun:
         if t == "exclude_subcategory" and target in tx.SUBCATEGORY_TO_CATEGORY:
             c.exclude_subcategories.add(target)
             c.include_subcategories.discard(target)
+        elif t == "exclude_group" and target in tx.GROUPS:
+            c.exclude_subcategories |= set(tx.GROUPS[target])
+            c.include_subcategories -= set(tx.GROUPS[target])
         elif t == "exclude_color" and target in tx.COLOR_LABEL:
             c.exclude_colors.add(target)
         elif t == "include_item":
@@ -213,7 +225,7 @@ class AgentRun:
             "outfit_id": outfit_id, "feedback_type": t, "target": real_target,
             "scope": [self.request["occasion"]] if self.request.get("occasion") else None,
             "is_persistent": False, "comment": (self.message or label)[:300]})
-        if t in ("exclude_item", "exclude_subcategory", "exclude_color") and self.source == "chat":
+        if t in ("exclude_item", "exclude_subcategory", "exclude_group", "exclude_color") and self.source == "chat":
             self.remember = {"feedback_id": self.feedback_row["id"], "label": self._target_label(target)}
         return label
 
@@ -323,6 +335,12 @@ class AgentRun:
         if missing:
             cats = ", ".join(tx.CATEGORY_LABEL[m["category"]] for m in missing)
             text += f" 옷장에 {cats}이(가) 부족해서 {n}개만 만들었어요."
+        elif n < 3:
+            text += f" 빼기로 한 조건에 맞는 조합이 {n}개뿐이에요."
+            subs = self.vctx().exclude_subcategories
+            if set(tx.GROUPS["pants"]) <= subs and not any(
+                    i["subcategory"] in tx.GROUPS["skirts"] for i in self.owned_all):
+                text += " 치마를 등록하면 더 다양하게 추천할 수 있어요."
         return text.strip()
 
     def _set_summary(self) -> str:

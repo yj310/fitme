@@ -64,7 +64,7 @@ async def save_feedback(state: GraphState, config) -> GraphState:
     t = r.step_start("save_feedback")
     summary = await r.save_feedback()
     r.step_done(t, "save_feedback", summary)
-    return {}
+    return {"has_ask": bool(r.ask)}
 
 
 async def get_weather(state: GraphState, config) -> GraphState:
@@ -242,7 +242,7 @@ def build_graph():
                                                            "load_context": "load_context"})
     g.add_conditional_edges("load_context", after_context, {"save_feedback": "save_feedback",
                                                             "get_weather": "get_weather"})
-    g.add_edge("save_feedback", "get_weather")
+    g.add_conditional_edges("save_feedback", after_flag, {"ask_user": "ask_user", "next": "get_weather"})
     g.add_edge("get_weather", "search_wardrobe")
     g.add_conditional_edges("search_wardrobe", after_flag, {"ask_user": "ask_user", "next": "generate_outfits"})
     g.add_conditional_edges("generate_outfits", after_flag, {"ask_user": "ask_user", "next": "validate_outfit"})

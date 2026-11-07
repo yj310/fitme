@@ -129,7 +129,11 @@ async def _answer_ask(ctx: Ctx, conv: dict, answer: dict, emit) -> None:
         target = item["name"] if item else "그 옷"
     scope = fb.get("scope")
     if answer.get("value") == "persist":
-        await ctx.store.update_feedback(fb["id"], {"is_persistent": True})
+        same = [f for f in await ctx.store.list_feedback(persistent=True)
+                if f["feedback_type"] == fb["feedback_type"] and f.get("target") == fb.get("target")
+                and (f.get("scope") or None) == (scope or None)]
+        if not same:  # already remembered: don't add a duplicate rule
+            await ctx.store.update_feedback(fb["id"], {"is_persistent": True})
         where = f"{scope[0]} 코디에서 " if scope else ""
         text = f"알겠어요. 앞으로 {where}{target}{_eun(target)} 빼둘게요. 내 프로필에서 언제든 바꿀 수 있어요."
     else:

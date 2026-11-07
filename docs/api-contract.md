@@ -117,6 +117,7 @@ interface User {
   body_measurements: { shoulder?: number|null; chest?: number|null; waist?: number|null; hip?: number|null } | null;
   onboarding_state: { steps?: Record<"fit"|"style"|"body"|"closet", { status: "done"|"skipped"; at: string }>; completed_at?: string };
   persistent_exclusions: { id: string; type: string; target: string; target_label: string; scope: string[] | null; created_at: string }[];
+  // type: exclude_item | exclude_subcategory | exclude_group | exclude_color. exclude_group의 target은 taxonomy.groups 코드(pants, skirts, dresses, outerwear, tees), target_label은 "바지" 등
   default_style: { id: string; style_name: string } | null;
   closet_count: number;    // is_active 옷 수
   created_at: string;

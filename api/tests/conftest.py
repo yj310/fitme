@@ -9,6 +9,10 @@ os.environ.setdefault("NVIDIA_API_KEY", "fake-nvidia-key-for-tests")
 os.environ.setdefault("GEMINI_API_KEY", "fake-gemini-key-for-tests")
 os.environ.setdefault("AI_KEY_ENCRYPTION_KEY", base64.b64encode(b"k" * 32).decode())
 os.environ.setdefault("SUPABASE_URL", "")
+# Tests use the documented limits, whatever a developer put in api/.env.
+os.environ["FREE_DAILY_AGENT_RUNS"] = "20"
+os.environ["FREE_DAILY_TAGGING"] = "50"
+os.environ["RATE_LIMIT_PER_MINUTE"] = "30"
 
 from fastapi.testclient import TestClient  # noqa: E402
 

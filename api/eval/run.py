@@ -169,15 +169,60 @@ async def run_tagging(args) -> dict:
     return {"태깅 카테고리 정확도": f"{100 * cat_ok / n:.0f}% (기준 90%)", "태깅 색 정확도": f"{100 * color_ok / n:.0f}% (기준 80%)"}
 
 
+async def run_parse(args) -> dict:
+    """Request understanding: does the parser pull out what the user wants removed? (live LLM)"""
+    import httpx
+
+    from app.agent.llm_tasks import exclusion_targets, parse_request
+    from app.config import get_pricing, get_settings, load_model_config
+    from app.db.memory import MemoryStore
+    from app.domain import taxonomy as tx
+    from app.llm.router import LLMService
+
+    def expand(xs):
+        out = set()
+        for x in xs:
+            out |= set(tx.GROUPS[x[1:]]) if x.startswith("@") else {x}
+        return out
+
+    cases = [json.loads(line) for line in (API / "eval/parse/cases.jsonl").read_text(encoding="utf-8").splitlines()
+             if line.strip()]
+    current = [{"ref": "i1", "name": "베이지 울 코트", "subcategory": "coat", "color": "beige"},
+               {"ref": "i2", "name": "화이트 셔츠", "subcategory": "shirt", "color": "white"},
+               {"ref": "i3", "name": "진청 데님", "subcategory": "denim", "color": "denim_blue"},
+               {"ref": "i4", "name": "브라운 부츠", "subcategory": "boots", "color": "brown"}]
+    ok = 0
+    async with httpx.AsyncClient(timeout=60) as http:
+        llm = LLMService(get_settings(), load_model_config(args.env), get_pricing(), http, MemoryStore("eval-parse"))
+        for c in cases:
+            p = await parse_request(llm, c["message"], ["학교 코디 추천해줘"], current, date.today())
+            got = exclusion_targets(p)
+            want = expand(c["exclude"])
+            passed = want <= got and got <= want | expand(c.get("allow", []))
+            ok += passed
+            print(f"  {'O' if passed else 'X'} {c['id']:2} {c['message']}  → {sorted(got)}"
+                  + ("" if passed else f"  (정답 {sorted(want)})"))
+    return {"제외 표현 인식": f"{100 * ok / len(cases):.0f}% ({ok}/{len(cases)})"}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--env", choices=["development", "production"], default="development")
     ap.add_argument("--llm", choices=["offline", "live"], default="offline")
     ap.add_argument("--tagging", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--parse", action="store_true", help="only the request-understanding set (needs --llm live)")
     args = ap.parse_args()
     os.environ["APP_ENV"] = args.env
     print(f"FITME eval · env={args.env} · llm={args.llm}")
+    if args.parse:
+        if args.llm != "live":
+            sys.exit("--parse needs --llm live")
+        results = asyncio.run(run_parse(args))
+        print("\n| 지표 | 결과 |\n|---|---|")
+        for k, v in results.items():
+            print(f"| {k} | {v} |")
+        return
     results = asyncio.run(run_outfits(args))
     if args.tagging:
         if args.llm != "live":

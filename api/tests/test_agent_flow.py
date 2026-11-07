@@ -235,3 +235,63 @@ def test_latest_chat(h):
     assert [m["role"] for m in r["messages"]] == ["user", "assistant"]
     assert len(r["current"]["outfits"]) == 3
     assert r["messages"][1]["payload"]["steps"]
+
+
+def test_exclude_pants_group_end_to_end(h):
+    from app.domain import taxonomy as tx
+    from tests.fakes import WARDROBE, item
+    skirts = [item("블랙 미디스커트", "bottom", "midi_skirt", "black"), item("베이지 롱스커트", "bottom", "long_skirt", "beige")]
+    run(h.seed(wardrobe=WARDROBE + skirts))
+    pants = set(tx.GROUPS["pants"])
+    evs = h.chat("내일 학교 코디 짜줘")
+    conv = events_of(evs, "done")[0]["conversation_id"]
+
+    # the fake model doesn't know "바지"; the rule net still removes every kind of pants
+    evs = h.chat("바지 빼줘", conv)
+    ev, items = outfit_items(evs)
+    assert ev["label"] == "바지 전체 제외"
+    assert items and not [i for i in items if i["subcategory"] in pants]
+    ask = events_of(evs, "ask")[0]
+    assert ask["kind"] == "remember" and "바지" in ask["question"]
+    h.chat("네, 기억해줘", conv, answer={"ask_id": ask["ask_id"], "value": "persist"})
+    me = h.client.get("/api/v1/me").json()
+    assert me["persistent_exclusions"][0]["target"] == "pants"
+    assert me["persistent_exclusions"][0]["target_label"] == "바지"
+
+    # new conversation, same occasion: still no pants
+    evs = h.chat("내일 학교 코디 다시 짜줘")
+    _, items = outfit_items(evs)
+    assert items and not [i for i in items if i["subcategory"] in pants]
+
+
+def test_unclear_exclusion_asks_instead_of_guessing(h):
+    from tests.fakes import FakeAdapter
+
+    class Unsure(FakeAdapter):
+        def _parse(self, user):
+            out = super()._parse(user)
+            if "레깅스" in user:
+                out["intent"] = "feedback"
+                out["feedback"] = {"type": "exclude_subcategory", "target": "leggings"}
+            return out
+
+    run(h.seed())
+    h.adapters["nvidia"] = Unsure("nvidia", calls=h.calls)
+    evs = h.chat("내일 학교 코디 짜줘")
+    conv = events_of(evs, "done")[0]["conversation_id"]
+    evs = h.chat("레깅스 빼줘", conv)
+    ask = events_of(evs, "ask")[0]
+    assert ask["kind"] == "clarify" and "어떤 옷을 뺄까요" in ask["question"]
+    assert not events_of(evs, "outfits")
+
+
+def test_remember_twice_keeps_one_rule(h):
+    run(h.seed())
+    for _ in range(2):
+        evs = h.chat("내일 소개팅 코디")
+        conv = events_of(evs, "done")[0]["conversation_id"]
+        evs = h.chat("슬랙스는 빼줘", conv)
+        ask = events_of(evs, "ask")[0]
+        h.chat("네, 기억해줘", conv, answer={"ask_id": ask["ask_id"], "value": "persist"})
+    me = h.client.get("/api/v1/me").json()
+    assert len(me["persistent_exclusions"]) == 1

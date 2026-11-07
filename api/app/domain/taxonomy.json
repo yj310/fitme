@@ -175,5 +175,12 @@
     { "code": "t9", "label": "9–11°", "temp": 10 },
     { "code": "t5", "label": "5–8°", "temp": 7 },
     { "code": "t4", "label": "4° 이하", "temp": 2 }
+  ],
+  "groups": [
+    { "code": "pants", "label": "바지", "subcategories": ["slacks", "denim", "cotton_pants", "jogger", "shorts"], "synonyms": ["바지", "팬츠", "바지류", "팬츠류", "긴바지"] },
+    { "code": "skirts", "label": "치마", "subcategories": ["mini_skirt", "midi_skirt", "long_skirt"], "synonyms": ["치마", "스커트", "치마류", "스커트류"] },
+    { "code": "dresses", "label": "원피스", "subcategories": ["mini_dress", "midi_dress", "long_dress", "jumpsuit"], "synonyms": ["원피스", "원피스류", "드레스"] },
+    { "code": "outerwear", "label": "아우터", "subcategories": ["cardigan", "jacket", "blazer", "trench_coat", "coat", "jumper", "padding", "vest"], "synonyms": ["아우터", "겉옷", "아우터류"] },
+    { "code": "tees", "label": "티셔츠", "subcategories": ["tshirt_short", "tshirt_long"], "synonyms": ["티셔츠", "티", "티셔츠류", "티류"] }
   ]
 }
