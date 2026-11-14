@@ -1,0 +1,13 @@
+# USD per 1M tokens, used for BYOK "예상 비용" (spec F10-b). Update from provider pricing pages.
+gemini:
+  gemini-3.8-flash:      { input: 0.30, output: 2.50 }
+  gemini-3.5-flash-lite: { input: 0.10, output: 0.40 }
+  default:               { input: 0.30, output: 2.50 }
+anthropic:
+  claude-sonnet-5-5:     { input: 3.00, output: 15.00 }
+  claude-haiku-5-5:      { input: 1.00, output: 5.00 }
+  default:               { input: 3.00, output: 15.00 }
+openai:
+  default:               { input: 2.50, output: 10.00 }
+nvidia:
+  default:               { input: 0.0, output: 0.0 }

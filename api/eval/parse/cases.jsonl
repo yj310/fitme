@@ -1,0 +1,30 @@
+{"id": 1, "message": "바지 빼줘", "exclude": ["@pants"]}
+{"id": 2, "message": "아니 그냥 세상 모든 바지를 안입는다고", "exclude": ["@pants"]}
+{"id": 3, "message": "데님도 빼. 데님도 바지잖아.", "exclude": ["denim"], "allow": ["@pants"]}
+{"id": 4, "message": "청바지 말고", "exclude": ["denim"]}
+{"id": 5, "message": "치마는 싫어", "exclude": ["@skirts"]}
+{"id": 6, "message": "스커트 빼줘", "exclude": ["@skirts"]}
+{"id": 7, "message": "원피스는 안 입어", "exclude": ["@dresses"]}
+{"id": 8, "message": "검은색 옷 빼줘", "exclude": ["black"]}
+{"id": 9, "message": "아우터 없이 입고 싶어", "exclude": ["@outerwear"]}
+{"id": 10, "message": "운동화 말고 구두로", "exclude": ["sneakers"]}
+{"id": 11, "message": "니트 말고 셔츠로 바꿔줘", "exclude": ["knit"]}
+{"id": 12, "message": "반팔은 빼", "exclude": ["tshirt_short"]}
+{"id": 13, "message": "티셔츠 류는 다 빼줘", "exclude": ["@tees"]}
+{"id": 14, "message": "트레이닝복 같은 건 빼", "exclude": ["jogger"]}
+{"id": 15, "message": "그 코트 빼줘", "exclude": ["i1"], "allow": ["coat"]}
+{"id": 16, "message": "부츠 싫어", "exclude": ["boots"]}
+{"id": 17, "message": "빨간색은 안 어울려서 싫어", "exclude": ["red"]}
+{"id": 18, "message": "패딩은 너무 덥다", "exclude": ["padding"]}
+{"id": 19, "message": "면바지 말고 다른 걸로", "exclude": ["cotton_pants"]}
+{"id": 20, "message": "레깅스나 반바지는 빼", "exclude": ["shorts"]}
+{"id": 21, "message": "하의는 치마로만 해줘", "exclude": ["@pants"]}
+{"id": 22, "message": "구두 신기 싫어", "exclude": ["flats"]}
+{"id": 23, "message": "후드티는 학교에 입기엔 좀 그래", "exclude": ["hoodie"]}
+{"id": 24, "message": "스니커즈 말고", "exclude": ["sneakers"]}
+{"id": 25, "message": "블레이저 빼", "exclude": ["blazer"]}
+{"id": 26, "message": "슬랙스랑 데님 둘 다 빼", "exclude": ["slacks", "denim"]}
+{"id": 27, "message": "흰 셔츠 빼줘", "exclude": ["i2"], "allow": ["shirt", "white"]}
+{"id": 28, "message": "바지는 절대 추천하지 마", "exclude": ["@pants"]}
+{"id": 29, "message": "팬츠류 다 빼", "exclude": ["@pants"]}
+{"id": 30, "message": "조거 말고 다른 하의", "exclude": ["jogger"]}

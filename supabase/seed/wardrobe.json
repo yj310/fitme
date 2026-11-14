@@ -1,0 +1,554 @@
+[
+  {
+    "file": "beige-trench-coat.webp",
+    "name": "베이지 트렌치코트",
+    "category": "outer",
+    "subcategory": "trench_coat",
+    "color": "beige",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "classic",
+      "french_chic",
+      "minimal"
+    ],
+    "formality": 2,
+    "warmth": 2
+  },
+  {
+    "file": "navy-blazer.webp",
+    "name": "네이비 블레이저",
+    "category": "outer",
+    "subcategory": "blazer",
+    "color": "navy",
+    "pattern": "solid",
+    "fit": "slim",
+    "material": "wool",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "office",
+      "classic"
+    ],
+    "formality": 3,
+    "warmth": 2
+  },
+  {
+    "file": "black-padding.webp",
+    "name": "블랙 패딩",
+    "category": "outer",
+    "subcategory": "padding",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "synthetic",
+    "seasons": [
+      "winter"
+    ],
+    "style_tags": [
+      "casual",
+      "street"
+    ],
+    "formality": 1,
+    "warmth": 3
+  },
+  {
+    "file": "khaki-jumper.webp",
+    "name": "카키 점퍼",
+    "category": "outer",
+    "subcategory": "jumper",
+    "color": "khaki",
+    "pattern": "solid",
+    "fit": "over",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "casual",
+      "minimal"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "beige-wool-coat.webp",
+    "name": "베이지 울 코트",
+    "category": "outer",
+    "subcategory": "coat",
+    "color": "beige",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "wool",
+    "seasons": [
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "minimal",
+      "classic"
+    ],
+    "formality": 2,
+    "warmth": 3
+  },
+  {
+    "file": "white-shirt.webp",
+    "name": "화이트 셔츠",
+    "category": "top",
+    "subcategory": "shirt",
+    "color": "white",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "summer",
+      "fall"
+    ],
+    "style_tags": [
+      "minimal",
+      "office",
+      "classic"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "ivory-knit.webp",
+    "name": "아이보리 니트",
+    "category": "top",
+    "subcategory": "knit",
+    "color": "ivory",
+    "pattern": "solid",
+    "fit": "over",
+    "material": "knit",
+    "seasons": [
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "feminine",
+      "minimal"
+    ],
+    "formality": 2,
+    "warmth": 2
+  },
+  {
+    "file": "navy-knit.webp",
+    "name": "네이비 니트",
+    "category": "top",
+    "subcategory": "knit",
+    "color": "navy",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "knit",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "minimal",
+      "classic"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "gray-sweatshirt.webp",
+    "name": "그레이 맨투맨",
+    "category": "top",
+    "subcategory": "sweatshirt",
+    "color": "gray",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "casual",
+      "sporty"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "white-tshirt-short.webp",
+    "name": "화이트 반팔 티셔츠",
+    "category": "top",
+    "subcategory": "tshirt_short",
+    "color": "white",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "summer"
+    ],
+    "style_tags": [
+      "minimal",
+      "casual"
+    ],
+    "formality": 1,
+    "warmth": 1
+  },
+  {
+    "file": "black-tshirt-long.webp",
+    "name": "블랙 긴팔 티셔츠",
+    "category": "top",
+    "subcategory": "tshirt_long",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "slim",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "minimal",
+      "casual"
+    ],
+    "formality": 1,
+    "warmth": 1
+  },
+  {
+    "file": "sky-blue-shirt.webp",
+    "name": "스카이블루 셔츠",
+    "category": "top",
+    "subcategory": "shirt",
+    "color": "sky_blue",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "summer",
+      "fall"
+    ],
+    "style_tags": [
+      "office",
+      "classic",
+      "minimal"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "pink-blouse.webp",
+    "name": "핑크 블라우스",
+    "category": "top",
+    "subcategory": "blouse",
+    "color": "pink",
+    "pattern": "solid",
+    "fit": "regular",
+    "material": "synthetic",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "feminine"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "black-hoodie.webp",
+    "name": "블랙 후드",
+    "category": "top",
+    "subcategory": "hoodie",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "over",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "casual",
+      "street"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "gray-slacks.webp",
+    "name": "그레이 슬랙스",
+    "category": "bottom",
+    "subcategory": "slacks",
+    "color": "gray",
+    "pattern": "solid",
+    "fit": "slim",
+    "material": "wool",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "office",
+      "classic",
+      "minimal"
+    ],
+    "formality": 3,
+    "warmth": 2
+  },
+  {
+    "file": "black-slacks.webp",
+    "name": "블랙 슬랙스",
+    "category": "bottom",
+    "subcategory": "slacks",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "straight",
+    "material": "synthetic",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "office",
+      "minimal"
+    ],
+    "formality": 3,
+    "warmth": 2
+  },
+  {
+    "file": "dark-denim.webp",
+    "name": "진청 데님",
+    "category": "bottom",
+    "subcategory": "denim",
+    "color": "navy",
+    "pattern": "solid",
+    "fit": "slim",
+    "material": "denim",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "casual",
+      "amekaji"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "light-wide-denim.webp",
+    "name": "연청 와이드 데님",
+    "category": "bottom",
+    "subcategory": "denim",
+    "color": "sky_blue",
+    "pattern": "solid",
+    "fit": "wide",
+    "material": "denim",
+    "seasons": [
+      "spring",
+      "summer"
+    ],
+    "style_tags": [
+      "casual"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "beige-cotton-pants.webp",
+    "name": "베이지 면바지",
+    "category": "bottom",
+    "subcategory": "cotton_pants",
+    "color": "beige",
+    "pattern": "solid",
+    "fit": "straight",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "summer",
+      "fall"
+    ],
+    "style_tags": [
+      "casual",
+      "minimal"
+    ],
+    "formality": 1,
+    "warmth": 1
+  },
+  {
+    "file": "gray-jogger.webp",
+    "name": "그레이 조거",
+    "category": "bottom",
+    "subcategory": "jogger",
+    "color": "gray",
+    "pattern": "solid",
+    "fit": "slim",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "sporty",
+      "casual"
+    ],
+    "formality": 1,
+    "warmth": 2
+  },
+  {
+    "file": "denim-shorts.webp",
+    "name": "데님 반바지",
+    "category": "bottom",
+    "subcategory": "shorts",
+    "color": "denim_blue",
+    "pattern": "solid",
+    "fit": "straight",
+    "material": "denim",
+    "seasons": [
+      "summer"
+    ],
+    "style_tags": [
+      "casual",
+      "street"
+    ],
+    "formality": 1,
+    "warmth": 1
+  },
+  {
+    "file": "navy-midi-dress.webp",
+    "name": "네이비 미디 원피스",
+    "category": "dress",
+    "subcategory": "midi_dress",
+    "color": "navy",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "cotton",
+    "seasons": [
+      "spring",
+      "summer",
+      "fall"
+    ],
+    "style_tags": [
+      "classic",
+      "feminine",
+      "office"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "black-loafers.webp",
+    "name": "블랙 로퍼",
+    "category": "shoes",
+    "subcategory": "loafers",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "leather",
+    "seasons": [
+      "spring",
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "classic",
+      "office"
+    ],
+    "formality": 2,
+    "warmth": 2
+  },
+  {
+    "file": "white-sneakers.webp",
+    "name": "화이트 스니커즈",
+    "category": "shoes",
+    "subcategory": "sneakers",
+    "color": "white",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "leather",
+    "seasons": [
+      "spring",
+      "summer",
+      "fall"
+    ],
+    "style_tags": [
+      "casual",
+      "minimal"
+    ],
+    "formality": 1,
+    "warmth": 1
+  },
+  {
+    "file": "brown-boots.webp",
+    "name": "브라운 부츠",
+    "category": "shoes",
+    "subcategory": "boots",
+    "color": "brown",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "leather",
+    "seasons": [
+      "fall",
+      "winter"
+    ],
+    "style_tags": [
+      "vintage",
+      "casual"
+    ],
+    "formality": 2,
+    "warmth": 3
+  },
+  {
+    "file": "black-flats.webp",
+    "name": "블랙 플랫",
+    "category": "shoes",
+    "subcategory": "flats",
+    "color": "black",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "leather",
+    "seasons": [
+      "spring",
+      "fall"
+    ],
+    "style_tags": [
+      "office",
+      "classic",
+      "feminine"
+    ],
+    "formality": 2,
+    "warmth": 1
+  },
+  {
+    "file": "beige-sandals.webp",
+    "name": "베이지 샌들",
+    "category": "shoes",
+    "subcategory": "sandals",
+    "color": "beige",
+    "pattern": "solid",
+    "fit": "none",
+    "material": "synthetic",
+    "seasons": [
+      "summer"
+    ],
+    "style_tags": [
+      "casual",
+      "feminine"
+    ],
+    "formality": 1,
+    "warmth": 1
+  }
+]

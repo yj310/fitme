@@ -1,0 +1,30 @@
+{"id": 1, "message": "내일 소개팅인데 미니멀하고 너무 꾸민 느낌은 싫어", "weather": {"temp": 14, "wind": 2.0, "pty": "없음"}, "followup": "슬랙스는 불편해. 청바지로 바꿔줘", "forbidden_subcategories": ["slacks"]}
+{"id": 2, "message": "오늘 출근룩 단정하게 짜줘", "weather": {"temp": 17, "wind": 1.5, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 3, "message": "내일 면접 보러 가요. 깔끔하게", "weather": {"temp": 12, "wind": 2.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 4, "message": "주말에 친구 모임 있어. 편하게 입고 싶어", "weather": {"temp": 21, "wind": 1.0, "pty": "없음"}, "followup": "후드는 빼줘", "forbidden_subcategories": ["hoodie"]}
+{"id": 5, "message": "내일 결혼식 하객룩 부탁해", "weather": {"temp": 16, "wind": 3.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 6, "message": "오늘 비 온대. 학교 갈 때 입을 거", "weather": {"temp": 15, "wind": 3.5, "pty": "비"}, "followup": null, "forbidden_subcategories": []}
+{"id": 7, "message": "한겨울처럼 춥대. 출근룩", "weather": {"temp": 2, "wind": 3.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 8, "message": "영하는 아닌데 꽤 쌀쌀해. 데이트 코디", "weather": {"temp": 7, "wind": 2.0, "pty": "없음"}, "followup": "좀 더 따뜻하게", "forbidden_subcategories": []}
+{"id": 9, "message": "엄청 더운 날 쇼핑 갈 때 입을 옷", "weather": {"temp": 29, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 10, "message": "선선한 가을 여행 코디 3개", "weather": {"temp": 18, "wind": 2.5, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 11, "message": "바람 많이 부는 날 출근", "weather": {"temp": 13, "wind": 6.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 12, "message": "가족 모임, 너무 캐주얼하지 않게", "weather": {"temp": 19, "wind": 1.0, "pty": "없음"}, "followup": "검정은 빼줘", "forbidden_subcategories": []}
+{"id": 13, "message": "운동 갈 때 입을 편한 옷", "weather": {"temp": 16, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 14, "message": "소개팅인데 프렌치 시크 느낌으로", "weather": {"temp": 15, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 15, "message": "내일 회의 있어. 슬랙스 말고", "weather": {"temp": 14, "wind": 2.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": ["slacks"]}
+{"id": 16, "message": "모레 데이트, 청바지로 캐주얼하게", "weather": {"temp": 20, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 17, "message": "오늘 학교 가는데 아무거나 편하게", "weather": {"temp": 23, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 18, "message": "저녁에 친구랑 밥 먹어. 꾸안꾸로", "weather": {"temp": 11, "wind": 2.0, "pty": "없음"}, "followup": "너무 무난해, 포인트 하나 넣어줘", "forbidden_subcategories": []}
+{"id": 19, "message": "출근인데 눈 온대", "weather": {"temp": 0, "wind": 2.5, "pty": "눈"}, "followup": null, "forbidden_subcategories": []}
+{"id": 20, "message": "소나기 온다는데 데이트", "weather": {"temp": 24, "wind": 2.0, "pty": "소나기"}, "followup": null, "forbidden_subcategories": []}
+{"id": 21, "message": "면접인데 코트 필수겠지?", "weather": {"temp": 6, "wind": 2.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 22, "message": "결혼식 가는데 원피스 입고 싶어", "weather": {"temp": 18, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 23, "message": "오늘 쇼핑, 스니커즈 신고 걸을 거야", "weather": {"temp": 20, "wind": 2.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 24, "message": "여행 첫날 비행기 타요. 편한 옷", "weather": {"temp": 12, "wind": 1.5, "pty": "없음"}, "followup": "니트는 빼줘", "forbidden_subcategories": ["knit"]}
+{"id": 25, "message": "오늘 일상 코디 부탁", "weather": {"temp": 9, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 26, "message": "출근인데 셔츠 입고 싶어", "weather": {"temp": 17, "wind": 1.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 27, "message": "친구 모임, 와이드 데님 빼고", "weather": {"temp": 15, "wind": 2.0, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 28, "message": "데이트인데 너무 꾸민 건 싫어", "weather": {"temp": 22, "wind": 1.0, "pty": "없음"}, "followup": "더 단정하게", "forbidden_subcategories": []}
+{"id": 29, "message": "가족 모임인데 날씨가 애매해", "weather": {"temp": 19, "wind": 4.5, "pty": "없음"}, "followup": null, "forbidden_subcategories": []}
+{"id": 30, "message": "내일 소개팅, 화이트 계열로 깔끔하게", "weather": {"temp": 16, "wind": 1.0, "pty": "없음"}, "followup": "슬랙스 빼줘", "forbidden_subcategories": ["slacks"]}

@@ -1,0 +1,34 @@
+title = "fitme gitleaks config"
+
+[extend]
+useDefault = true
+
+# Extra rules for keys this project uses.
+[[rules]]
+id = "supabase-jwt"
+description = "Supabase anon/service_role JWT"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["eyj"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase new-style secret key"
+regex = '''sb_secret_[A-Za-z0-9_-]{16,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "nvidia-api-key"
+description = "NVIDIA API key"
+regex = '''nvapi-[A-Za-z0-9_-]{20,}'''
+keywords = ["nvapi-"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google / Gemini API key"
+regex = '''AIza[0-9A-Za-z_-]{35}'''
+keywords = ["aiza"]
+
+[allowlist]
+description = "Placeholders in example files and tests"
+regexes = ['''your-[a-z0-9-]+''', '''<[^>]+>''', '''sk-test-dummy[A-Za-z0-9]*''']
+paths = ['''(^|/)\.env\.example$''']

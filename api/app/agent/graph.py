@@ -1,0 +1,325 @@
+"""Styling Agent execution graph (LangGraph), spec 7.2.
+
+parse_request → load_context → [save_feedback] → get_weather → search_wardrobe → generate_outfits
+→ validate_outfit ─pass→ score_rank → respond
+                  ─fail (≤2 retries)→ generate_outfits
+                  ─conflict / impossible→ ask_user
+
+Large objects (search results, evaluated outfits) live on the per-run `AgentRun`; the graph state
+carries routing fields. Each tool call emits an SSE `step` (F09).
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TypedDict
+
+from langgraph.graph import END, START, StateGraph
+
+from app.agent import core, llm_tasks
+from app.agent.run import AgentRun, ro
+from app.domain import rules
+from app.domain import taxonomy as tx
+from app.errors import ApiError
+
+
+class GraphState(TypedDict, total=False):
+    intent: str
+    retries: int
+    need: int
+    llm_failed: bool
+    has_ask: bool
+    swap: bool
+    done: bool
+
+
+def _run(config) -> AgentRun:
+    return config["configurable"]["run"]
+
+
+# ───────────────────────── nodes ─────────────────────────
+
+async def parse_request(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    if r.preparsed is not None:  # today screen / chip feedback: no LLM parse
+        r.apply_parsed(r.preparsed)
+        return {"intent": r.preparsed.get("intent", "new_request")}
+    t = r.step_start("parse_request")
+    parsed = await llm_tasks.parse_request(r.llm, r.message, r.recent, r.current_refs, r.today)
+    r.apply_parsed(parsed)
+    r.step_done(t, "parse_request", r.request_summary(parsed))
+    return {"intent": parsed["intent"]}
+
+
+async def load_context(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("get_user_profile")
+    r.uc = await core.load_user_context(r.store)
+    r.step_done(t, "get_user_profile", r.uc.profile_summary())
+    t = r.step_start("get_style_profile")
+    r.step_done(t, "get_style_profile", r.uc.style_summary())
+    return {}
+
+
+async def save_feedback(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("save_feedback")
+    summary = await r.save_feedback()
+    r.step_done(t, "save_feedback", summary)
+    return {"has_ask": bool(r.ask)}
+
+
+async def get_weather(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("get_weather")
+    await r.load_weather()
+    r.step_done(t, "get_weather", r.weather_summary())
+    return {}
+
+
+async def search_wardrobe(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("search_wardrobe")
+    items = await r.store.list_items(active=True)
+    r.owned_all = items
+    excl = core.effective_exclusions(r.constraints, r.uc, r.request.get("occasion"))
+    r.excl = excl
+    style_tags = set(r.uc.attrs.get("style_tags", [])) | set(r.request.get("style_tags", [])) \
+        | set(r.constraints.style_tags)
+    r.search = core.search_wardrobe(items, r.constraints, excl, r.season, r.temp, style_tags,
+                                    set(r.uc.attrs.get("preferred_colors", [])))
+    s = r.search
+    r.step_done(t, "search_wardrobe", f"{tx.SEASON_LABEL[r.season]} 후보 {len(s.candidates)}벌")
+
+    if s.missing_include:
+        sub = s.missing_include[0]
+        cat = tx.SUBCATEGORY_TO_CATEGORY[sub]
+        alts = sorted({i["subcategory"] for i in s.candidates if i["category"] == cat})[:2]
+        r.ask = {"kind": "clarify",
+                 "question": f"{tx.SUBCATEGORY_LABEL[sub]}{_eun(tx.SUBCATEGORY_LABEL[sub])} 옷장에 없어요. "
+                             + (f"{' 또는 '.join(tx.SUBCATEGORY_LABEL[a] for a in alts)}{ro(tx.SUBCATEGORY_LABEL[alts[-1]])} "
+                                "대신할까요?" if alts else "다른 걸로 골라 드릴까요?"),
+                 "options": [f"{tx.SUBCATEGORY_LABEL[a]}{ro(tx.SUBCATEGORY_LABEL[a])} 해줘" for a in alts]
+                 or ["알아서 골라줘"]}
+        return {"has_ask": True}
+    has_base = any(i["category"] == "dress" for i in s.candidates) or (
+        any(i["category"] == "top" for i in s.candidates) and any(i["category"] == "bottom" for i in s.candidates))
+    if not has_base:
+        r.ask = {"kind": "clarify", "question": "조건에 맞는 상의·하의 조합이 옷장에 없어요. 옷을 더 등록하거나 "
+                 "제외 조건을 줄여 볼까요?", "options": ["제외 조건 풀어줘"]}
+        return {"has_ask": True}
+    r.div_key = core.diversity_key(s)
+    return {"need": min(3, core.distinct_looks(s)), "retries": 0, "has_ask": False, "swap": bool(r.swap)}
+
+
+async def swap_outfits(state: GraphState, config) -> GraphState:
+    """'신발만 바꿔줘': no AI call, the rest of the outfit stays exactly as it was."""
+    r = _run(config)
+    t = r.step_start("swap_item")
+    r.build_swaps()
+    cat = tx.CATEGORY_LABEL.get(r.swap["category"], "")
+    if not r.final:
+        r.step_fail(t, "swap_item", f"바꿀 {cat} 없음")
+        r.ask = {"kind": "clarify", "question": f"지금 조건에서 바꿔 입을 수 있는 {cat}이 옷장에 없어요. "
+                 "다른 부분을 바꿔 볼까요?", "options": ["다른 조합 보여줘", "더 편하게"]}
+        return {"has_ask": True}
+    r.step_done(t, "swap_item", f"{cat} {len(r.final)}개 후보")
+    return {"has_ask": False}
+
+
+async def generate_outfits(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("generate_outfits")
+    try:
+        out = await llm_tasks.generate_outfits(r.llm, r.generation_payload(), count=6)
+    except ApiError as e:
+        if e.status == 429 and e.code == "FREE_QUOTA_EXCEEDED":
+            raise
+        r.step_fail(t, "generate_outfits", "AI 응답 실패 · 규칙으로 보완")
+        return {"llm_failed": True}
+    r.raw = out["outfits"]
+    r.gen_summary = out.get("summary")
+    r.llm_provider, r.llm_model = out["provider"], out["model"]
+    if out.get("ask") and not out["outfits"]:
+        # Ask only when the closet really can't make an outfit: let the rules try first (score_rank).
+        r.model_ask = {"kind": "clarify", **out["ask"]}
+        r.step_done(t, "generate_outfits", "AI가 조건 확인 요청 · 규칙으로 조합 확인")
+        return {"llm_failed": True}
+    r.step_done(t, "generate_outfits", f"후보 {len(out['outfits'])}개")
+    return {"llm_failed": False}
+
+
+async def validate_outfit(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("validate_outfit")
+    valid, fails = core.evaluate(r.raw if not state.get("llm_failed") else [], r.search, r.vctx(), r.avoid)
+    known = {frozenset(i["id"] for i in e.items) for e in r.valid}
+    r.valid += [e for e in valid if frozenset(i["id"] for i in e.items) not in known]
+    r.fails = fails
+    mains = len({r.div_key(e.items) for e in r.valid})
+    excluded_hits = sum(1 for f in fails if f.startswith("EXCLUDED"))
+    summary = f"통과 {len(valid)}" + (f" · 제외 아이템 {excluded_hits}건 걸러냄" if excluded_hits else "")
+    if mains >= state.get("need", 3):
+        summary += f" → 상위 {min(3, mains)}"
+    elif fails and not state.get("llm_failed"):
+        summary += " · 다시 생성"
+    r.step_done(t, "validate_outfit", summary)
+    return {"retries": state.get("retries", 0)}
+
+
+def after_validate(state: GraphState, config) -> str:
+    r = _run(config)
+    mains = len({r.div_key(e.items) for e in r.valid})
+    if mains >= state.get("need", 3):
+        return "score_rank"
+    # With some usable outfits already, one more try is enough; the rules fill the rest (keeps it under ~10s).
+    limit = r.settings.max_generation_retries if not r.valid else min(1, r.settings.max_generation_retries)
+    can_retry = (not state.get("llm_failed") and state.get("retries", 0) < limit
+                 and r.tool_calls + 2 <= r.settings.max_tool_calls)
+    return "retry" if can_retry else "score_rank"
+
+
+async def bump_retry(state: GraphState, config) -> GraphState:
+    return {"retries": state.get("retries", 0) + 1}
+
+
+async def score_rank(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("score_outfits")
+    sctx = r.sctx()
+    cands = core.score_all(r.valid, sctx)
+    mains = len({r.div_key(e.items) for e in cands})
+    if mains < state.get("need", 3):
+        cands += core.fill_with_rules(r.search, r.vctx(), sctx, cands, avoid=r.avoid)
+        r.used_rules_fill = True
+    r.final = core.top3(cands, key=r.div_key)
+    if not r.final:
+        r.step_fail(t, "score_outfits", "조건에 맞는 조합 없음")
+        reason = rules.describe_fails(r.fails[:2]) if r.fails else ""
+        if r.model_ask:
+            r.ask = r.model_ask
+            r.debug_reason = reason
+            return {"has_ask": True}
+        r.ask = {"kind": "clarify", "question": "조건을 모두 맞추는 조합을 찾지 못했어요. "
+                 + ("기온에 맞는 아우터가 부족해요. " if any("OUTER" in f for f in r.fails) else "")
+                 + "조건을 하나 풀어 볼까요?", "options": ["제외 조건 풀어줘", "날씨는 신경 쓰지 마"]}
+        r.debug_reason = reason
+        return {"has_ask": True}
+    r.step_done(t, "score_outfits", f"상위 {len(r.final)}개 · 최고 {round(r.final[0].score)}점")
+    return {}
+
+
+async def respond(state: GraphState, config) -> GraphState:
+    await _run(config).respond()
+    return {"done": True}
+
+
+async def ask_user(state: GraphState, config) -> GraphState:
+    await _run(config).respond_ask()
+    return {"done": True}
+
+
+GREETING = re.compile(r"^\s*(안녕|하이|헬로|반가|hi\b|hello)", re.I)
+THANKS = re.compile(r"(고마|감사|땡큐|thank)", re.I)
+HOW_TO = "'내일 출근룩 짜줘'처럼 날짜와 상황을 말해 주세요."
+
+
+def small_talk(message: str, has_outfits: bool) -> str:
+    if THANKS.search(message):
+        return "천만에요! 다른 날 코디가 필요하면 언제든 말해 주세요." if has_outfits else f"천만에요! {HOW_TO}"
+    if GREETING.search(message):
+        return f"안녕하세요! 내 옷장 안에서 날씨와 상황에 맞는 코디를 짜 드릴게요. {HOW_TO}"
+    return f"저는 내 옷장 안의 옷으로 코디를 짜 드려요. {HOW_TO}"
+
+
+async def answer_only(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    await r.respond_text(small_talk(r.message, bool(r.current_refs)))
+    return {"done": True}
+
+
+async def explain(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("answer_question")
+    await r.explain()
+    r.step_done(t, "answer_question", "지금 코디 기준으로 답변")
+    return {"done": True}
+
+
+async def like(state: GraphState, config) -> GraphState:
+    r = _run(config)
+    t = r.step_start("save_favorite")
+    await r.like()
+    r.step_done(t, "save_favorite", "즐겨찾기 저장")
+    return {"done": True}
+
+
+def after_parse(state: GraphState, config) -> str:
+    r = _run(config)
+    intent = state.get("intent")
+    if intent == "question" and r.current_outfits:
+        return "explain"
+    if intent in ("question", "other"):
+        return "answer_only"
+    if intent == "feedback" and (r.pending_feedback or {}).get("type") == "like" and r.current_outfits:
+        return "like"
+    return "load_context"
+
+
+def after_context(state: GraphState, config) -> str:
+    return "save_feedback" if _run(config).pending_feedback else "get_weather"
+
+
+def after_flag(state: GraphState) -> str:
+    return "ask_user" if state.get("has_ask") else "next"
+
+
+def after_search(state: GraphState) -> str:
+    if state.get("has_ask"):
+        return "ask_user"
+    return "swap" if state.get("swap") else "next"
+
+
+def _eun(word: str) -> str:
+    """은/는 particle."""
+    if not word:
+        return "는"
+    code = ord(word[-1]) - 0xAC00
+    return "은" if 0 <= code < 11172 and code % 28 else "는"
+
+
+# ───────────────────────── build ─────────────────────────
+
+def build_graph():
+    g = StateGraph(GraphState)
+    for name, fn in [("parse_request", parse_request), ("load_context", load_context),
+                     ("save_feedback", save_feedback), ("get_weather", get_weather),
+                     ("search_wardrobe", search_wardrobe), ("generate_outfits", generate_outfits),
+                     ("validate_outfit", validate_outfit), ("bump_retry", bump_retry),
+                     ("score_rank", score_rank), ("respond", respond), ("ask_user", ask_user),
+                     ("answer_only", answer_only), ("explain", explain), ("like", like),
+                     ("swap_outfits", swap_outfits)]:
+        g.add_node(name, fn)
+    g.add_edge(START, "parse_request")
+    g.add_conditional_edges("parse_request", after_parse, {"answer_only": "answer_only", "explain": "explain",
+                                                           "like": "like", "load_context": "load_context"})
+    g.add_conditional_edges("load_context", after_context, {"save_feedback": "save_feedback",
+                                                            "get_weather": "get_weather"})
+    g.add_conditional_edges("save_feedback", after_flag, {"ask_user": "ask_user", "next": "get_weather"})
+    g.add_edge("get_weather", "search_wardrobe")
+    g.add_conditional_edges("search_wardrobe", after_search, {"ask_user": "ask_user", "swap": "swap_outfits",
+                                                             "next": "generate_outfits"})
+    g.add_conditional_edges("swap_outfits", after_flag, {"ask_user": "ask_user", "next": "respond"})
+    g.add_conditional_edges("generate_outfits", after_flag, {"ask_user": "ask_user", "next": "validate_outfit"})
+    g.add_conditional_edges("validate_outfit", after_validate, {"retry": "bump_retry", "score_rank": "score_rank"})
+    g.add_edge("bump_retry", "generate_outfits")
+    g.add_conditional_edges("score_rank", after_flag, {"ask_user": "ask_user", "next": "respond"})
+    g.add_edge("respond", END)
+    g.add_edge("ask_user", END)
+    g.add_edge("answer_only", END)
+    g.add_edge("explain", END)
+    g.add_edge("like", END)
+    return g.compile()
+
+
+GRAPH = build_graph()
