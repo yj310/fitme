@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/AppShell";
@@ -11,7 +12,6 @@ import { onboardingDone, useAuth } from "@/components/providers/AuthProvider";
 import { BodyFigure, BodyForm, bodyDraftFrom, bodyPatch, type BodyDraft } from "@/components/profile/BodyForm";
 import { StyleAttributesEditor, StyleCreator } from "@/components/profile/StyleEditor";
 import { ClothingIcon, TYPICAL_COLOR } from "@/components/ClothingIcon";
-import { FitArt, STYLE_WORDS, StyleArt } from "@/components/onboarding/Art";
 import { Banner, Button, LoadingState, toggleIn } from "@/components/ui";
 import { errorMessage, listStyleProfiles, patchMe, patchStyleProfile } from "@/lib/api";
 import { cx } from "@/lib/format";
@@ -27,6 +27,20 @@ const STEPS: { key: OnboardingStep; label: string }[] = [
 
 // Step 1 ("취향") is four short pages, one question each.
 const PREF_PAGES = ["fit", "style", "colors", "items"] as const;
+
+// Lookbook images generated for FITME (Figma AI), one per style tag / fit, in public/onboarding/.
+const STYLE_WORDS: Record<string, string> = {
+  minimal: "무채색 · 군더더기 없이",
+  casual: "맨투맨 · 청바지 · 편하게",
+  street: "후드 · 카고 · 캡",
+  office: "블레이저 · 슬랙스 · 단정",
+  feminine: "블라우스 · 스커트 · 부드럽게",
+  classic: "트렌치 · 로퍼 · 정갈하게",
+  sporty: "트랙 재킷 · 조거 · 활동적",
+  vintage: "가디건 · 롱스커트 · 따뜻한 톤",
+  french_chic: "스트라이프 · 베레모 · 무심한 듯",
+  amekaji: "체크 셔츠 · 데님 · 워커",
+};
 
 const FIT_WORDS: Record<string, string> = {
   slim: "몸에 딱 맞게",
@@ -205,12 +219,17 @@ function Wizard({ me }: { me: User }) {
       <main className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col gap-5 px-4 py-6 sm:px-8 sm:py-8">
         {step === 0 && PREF_PAGES[pref] === "fit" && (
           <section className="flex flex-col gap-6">
-            <Heading step={`${pref + 1} / ${PREF_PAGES.length}`} title="어떤 핏을 가장 좋아하세요?" sub="점선이 내 몸이에요. 옷과 몸 사이 여유를 보고 골라 주세요." />
+            <Heading step={`${pref + 1} / ${PREF_PAGES.length}`} title="어떤 핏을 가장 좋아하세요?" sub="같은 옷을 핏만 다르게 입은 모습이에요. 평소 손이 가는 핏을 골라 주세요." />
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {TOP_FITS.map((f) => (
-                <Tile key={f.code} on={fit === f.code} onClick={() => setFit(f.code)} label={f.label} desc={FIT_WORDS[f.code]}>
-                  <FitArt fit={f.code} className="h-44 w-full" />
-                </Tile>
+                <Tile
+                  key={f.code}
+                  on={fit === f.code}
+                  onClick={() => setFit(f.code)}
+                  label={f.label}
+                  desc={FIT_WORDS[f.code]}
+                  media={<Look src={`/onboarding/fit-${f.code}.webp`} crop />}
+                />
               ))}
             </div>
           </section>
@@ -232,9 +251,8 @@ function Wizard({ me }: { me: User }) {
                   onClick={() => setStyleTags((v) => toggleIn(v, t.code, 3))}
                   label={t.label}
                   desc={STYLE_WORDS[t.code]}
-                >
-                  <StyleArt style={t.code} className="aspect-[4/3] w-full rounded-[10px] bg-tile" />
-                </Tile>
+                  media={<Look src={`/onboarding/style-${t.code}.webp`} />}
+                />
               ))}
             </div>
           </section>
@@ -412,6 +430,7 @@ function Tile({
   desc,
   avoid,
   disabled,
+  media,
   children,
 }: {
   on: boolean;
@@ -420,7 +439,9 @@ function Tile({
   desc?: string;
   avoid?: boolean;
   disabled?: boolean;
-  children: React.ReactNode;
+  /** Full-bleed picture at the top of the card (photos); `children` is a centered icon instead. */
+  media?: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <button
@@ -429,7 +450,8 @@ function Tile({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        "relative flex flex-col items-center gap-1.5 rounded-[16px] border-2 bg-surface p-3 pb-4 text-center transition-colors",
+        "relative flex flex-col items-center gap-1.5 overflow-hidden rounded-[16px] border-2 bg-surface text-center transition-colors",
+        media ? "pb-4" : "p-3 pb-4",
         "focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45",
         on
           ? avoid
@@ -442,16 +464,31 @@ function Tile({
         <span
           aria-hidden
           className={cx(
-            "absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full text-[13px] font-bold",
+            "absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold shadow",
             avoid ? "bg-danger text-white" : "bg-accent text-accent-ink",
           )}
         >
           {avoid ? "✕" : "✓"}
         </span>
       )}
+      {media && <div className="mb-1.5 w-full">{media}</div>}
       {children}
-      <span className={cx("text-[15px] font-semibold", on && avoid && "text-danger")}>{label}</span>
-      {desc && <span className="text-[12.5px] leading-snug text-muted">{desc}</span>}
+      <span className={cx("px-2 text-[15px] font-semibold", on && avoid && "text-danger")}>{label}</span>
+      {desc && <span className="px-2 text-[12.5px] leading-snug text-muted">{desc}</span>}
     </button>
+  );
+}
+
+/** `crop`: head to knees, so the top's fit (shoulders, width, length) reads larger. */
+function Look({ src, crop }: { src: string; crop?: boolean }) {
+  return (
+    <Image
+      src={src}
+      alt=""
+      width={600}
+      height={800}
+      sizes="(min-width: 1024px) 240px, 45vw"
+      className={cx("w-full bg-tile object-cover", crop ? "aspect-square object-[50%_6%]" : "aspect-[3/4]")}
+    />
   );
 }

@@ -71,3 +71,10 @@ These are real clothing photos used as seed wardrobe data (`supabase/seed/images
 | 28_tan-sandals.webp | Pexels | https://www.pexels.com/photo/product-shot-of-brown-leather-sandals-26965817/ | José Martin Segura Benites | Pexels License | |
 | 29_black-sneakers.webp | Pexels | https://www.pexels.com/photo/black-puma-rubber-shoes-on-white-background-11559288/ | Adrian Regeci | Pexels License | |
 | 30_beige-slides.webp | Pexels | https://www.pexels.com/photo/close-up-of-shoes-9267599/ | Denys Mikhalevych | Pexels License | |
+
+## Onboarding lookbook (`web/public/onboarding/`)
+
+`fit-*.webp` (4) and `style-*.webp` (10) were generated for FITME on 2026-11-14 with Figma AI image
+generation (`gpt-image-2.5-flare`) in the project's own Figma file "FITME 온보딩 일러스트". They show no real
+person or brand. Resized to 600×800 WebP. The fit images share one prompt (same person, same white
+long-sleeve top and jeans) with only the fit changed; each style image prompt names that style's typical pieces.
