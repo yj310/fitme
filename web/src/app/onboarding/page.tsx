@@ -353,6 +353,7 @@ function Wizard({ me }: { me: User }) {
             <Heading title="되고 싶은 스타일, 추구미를 알려주세요" sub="고르거나 직접 적으면 색·실루엣·무드로 정리해 드려요. 나중에 바꿀 수 있어요." />
             {!profile || !attrs ? (
               <StyleCreator
+                gender={body.gender || null}
                 onCreated={(p) => {
                   setProfile(p);
                   setStyleName(p.style_name);

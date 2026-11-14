@@ -96,6 +96,7 @@ export default function MePage() {
 
 // ── 추구미 카드 ──
 function StyleCard({ onChanged }: { onChanged: () => void }) {
+  const { me } = useAuth();
   const [profiles, setProfiles] = useState<StyleProfile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -180,6 +181,7 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
       )}
       <Modal open={adding} title="추구미 추가" onClose={() => setAdding(false)} width={720}>
         <StyleCreator
+          gender={me?.gender}
           onCreated={(p) => {
             setAdding(false);
             void load().then(() => setEditing(p));

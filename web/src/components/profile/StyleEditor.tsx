@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { createStyleProfile, errorMessage } from "@/lib/api";
 import { cx } from "@/lib/format";
 import { ALL_SUBCATEGORIES, COLORS, FITS, STYLE_PRESETS, STYLE_TAGS, label, labels } from "@/lib/taxonomy";
-import type { StyleAttributes, StyleProfile } from "@/lib/types";
-import { ClothingIcon } from "../ClothingIcon";
+import type { Gender, StyleAttributes, StyleProfile } from "@/lib/types";
 import { Banner, Button, Chip, Field, inputCls, toggleIn } from "../ui";
 
 /** Read-only attribute chips (profile card). */
@@ -35,8 +35,18 @@ export function StyleAttributeChips({ a }: { a: StyleAttributes }) {
   );
 }
 
-/** Preset cards (3 columns, 3 item drawings + name) + free text → POST /style-profiles (spec F04). */
-export function StyleCreator({ onCreated }: { onCreated: (p: StyleProfile) => void }) {
+// Each preset shows the lookbook photo of its closest style tag (public/onboarding/style-{gender}-{tag}.webp).
+const PRESET_LOOK: Record<string, string> = {
+  natural_minimal: "minimal",
+  french_chic: "french_chic",
+  casual_street: "street",
+  office_classic: "office",
+  lovely_feminine: "feminine",
+  amekaji: "amekaji",
+};
+
+/** Preset cards (lookbook photo + name + mood) + free text → POST /style-profiles (spec F04). */
+export function StyleCreator({ onCreated, gender }: { onCreated: (p: StyleProfile) => void; gender?: Gender | null }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +66,7 @@ export function StyleCreator({ onCreated }: { onCreated: (p: StyleProfile) => vo
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {STYLE_PRESETS.map((p) => (
           <button
             key={p.key}
@@ -64,19 +74,21 @@ export function StyleCreator({ onCreated }: { onCreated: (p: StyleProfile) => vo
             disabled={busy !== null}
             onClick={() => create({ preset: p.key }, p.key)}
             className={cx(
-              "flex flex-col items-center gap-2 rounded-[12px] border border-line bg-surface p-3 hover:border-accent",
-              busy === p.key && "border-accent bg-accent-soft",
+              "flex flex-col items-center gap-1 overflow-hidden rounded-[16px] border-2 bg-surface pb-3 text-center transition-colors hover:border-line-strong",
+              busy === p.key ? "border-accent bg-accent-soft" : "border-line",
             )}
           >
-            <div className="grid w-full grid-cols-3 gap-1">
-              {p.icons.map((ic) => (
-                <div key={ic} className="grid aspect-square place-items-center rounded-[8px] bg-tile">
-                  <ClothingIcon subcategory={ic} size={40} className="h-4/5 w-4/5" />
-                </div>
-              ))}
-            </div>
-            <span className="text-[13px] font-semibold">{p.style_name}</span>
-            <span className="text-[11px] text-muted">{labels("style", p.attributes.style_tags).join(" · ")}</span>
+            <Image
+              src={`/onboarding/style-${gender ?? "female"}-${PRESET_LOOK[p.key] ?? "minimal"}.webp`}
+              alt=""
+              width={600}
+              height={800}
+              sizes="(min-width: 1024px) 180px, (min-width: 640px) 30vw, 45vw"
+              className="mb-1.5 aspect-[4/5] w-full bg-tile object-cover object-top"
+            />
+            <span className="px-2 text-[15px] font-semibold">{p.style_name}</span>
+            <span className="px-2 text-[12.5px] text-muted">{(p.attributes.mood ?? []).join(" · ")}</span>
+            <span className="px-2 text-[11.5px] text-muted">{labels("style", p.attributes.style_tags).join(" · ")}</span>
           </button>
         ))}
       </div>
