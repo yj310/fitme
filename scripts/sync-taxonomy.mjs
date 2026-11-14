@@ -1,4 +1,4 @@
-// Copies the shared tag taxonomy and style presets from api/ into web/.
+// Copies the shared tag taxonomy from api/ into web/.
 // Run after editing api/app/domain/*.json:  node scripts/sync-taxonomy.mjs
 // Pass --check to fail (exit 1) when the copies are out of date (for CI).
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const files = ["taxonomy.json", "style_presets.json"];
+const files = ["taxonomy.json"];
 const check = process.argv.includes("--check");
 let stale = false;
 

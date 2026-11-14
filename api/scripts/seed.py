@@ -19,7 +19,7 @@ import httpx
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.config import get_settings  # noqa: E402
 from app.domain import taxonomy as tx  # noqa: E402
-from app.routers.styles import presets  # noqa: E402
+from app.domain.sample_style import SAMPLE_STYLE  # noqa: E402
 from app.routers.system import DEV_ACCOUNTS  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -41,7 +41,7 @@ def main() -> None:
            for k, email in DEV_ACCOUNTS.items()}
     for k, uid in ids.items():
         rest(http, base, "PATCH", "users", {"id": f"eq.{uid}"}, {
-            "nickname": f"테스트 {k.upper()}", "preferred_fit": "semi_over", "style_tags": ["minimal", "casual"],
+            "nickname": f"테스트 {k.upper()}",
             "home_region": "서울특별시 마포구", "region_code": "1144000000", "grid_nx": 59, "grid_ny": 127,
             "onboarding_state": {"completed_at": "2026-10-31T00:00:00+00:00", "seeded": True}})
 
@@ -73,10 +73,7 @@ def main() -> None:
 
     styles = rest(http, base, "GET", "style_profiles", {"user_id": f"eq.{a}", "select": "id"})
     if not styles:
-        p = next(p for p in presets() if p["key"] == "natural_minimal")
-        rest(http, base, "POST", "style_profiles", None, {"user_id": a, "style_name": p["style_name"],
-                                                          "preset_key": p["key"], "attributes": p["attributes"],
-                                                          "is_default": True})
+        rest(http, base, "POST", "style_profiles", None, {"user_id": a, **SAMPLE_STYLE, "is_default": True})
     print("done. Log in on /welcome with the dev buttons (테스트 계정 A/B).")
 
 

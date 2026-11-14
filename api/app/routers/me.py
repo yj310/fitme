@@ -31,16 +31,12 @@ class Measurements(BaseModel):
 
 
 class OnboardingStep(BaseModel):
-    step: Literal["fit", "style", "body", "closet"]
+    step: Literal["body", "style", "closet"]
     status: Literal["done", "skipped"]
 
 
 class MePatch(BaseModel):
     nickname: str | None = Field(None, max_length=20)
-    preferred_fit: str | None = None
-    style_tags: list[str] | None = None
-    avoid_colors: list[str] | None = None
-    avoid_subcategories: list[str] | None = None
     personal_color: str | None = None
     region_code: str | None = None
     gender: Literal["female", "male"] | None = None
@@ -50,34 +46,6 @@ class MePatch(BaseModel):
     body_measurements: Measurements | None = None
     onboarding_step: OnboardingStep | None = None
     complete_onboarding: bool | None = None
-
-    @field_validator("preferred_fit")
-    @classmethod
-    def _fit(cls, v):
-        if v is not None and v not in tx.FITS["top"]:
-            raise ValueError("invalid fit")
-        return v
-
-    @field_validator("style_tags")
-    @classmethod
-    def _styles(cls, v):
-        if v is not None and (len(v) > 3 or any(s not in tx.STYLE_TAGS for s in v)):
-            raise ValueError("style_tags: up to 3 valid codes")
-        return v
-
-    @field_validator("avoid_colors")
-    @classmethod
-    def _colors(cls, v):
-        if v is not None and any(c not in tx.COLOR_LABEL for c in v):
-            raise ValueError("invalid color")
-        return v
-
-    @field_validator("avoid_subcategories")
-    @classmethod
-    def _subs(cls, v):
-        if v is not None and any(s not in tx.SUBCATEGORY_TO_CATEGORY for s in v):
-            raise ValueError("invalid subcategory")
-        return v
 
     @field_validator("personal_color")
     @classmethod
@@ -109,9 +77,8 @@ async def user_view(ctx: Ctx, row: dict | None = None) -> dict:
     persistent = await ctx.store.list_feedback(persistent=True)
     item_ids = [f["target"] for f in persistent if f["feedback_type"] == "exclude_item" and f.get("target")]
     items = {i["id"]: i for i in await ctx.store.get_items(item_ids)} if item_ids else {}
-    keys = ("id", "nickname", "avatar_url", "preferred_fit", "style_tags", "avoid_colors", "avoid_subcategories",
-            "personal_color", "home_region", "region_code", "grid_nx", "grid_ny", "gender", "height_cm",
-            "usual_sizes", "body_traits", "body_measurements", "onboarding_state", "created_at")
+    keys = ("id", "nickname", "avatar_url", "personal_color", "home_region", "region_code", "grid_nx", "grid_ny",
+            "gender", "height_cm", "usual_sizes", "body_traits", "body_measurements", "onboarding_state", "created_at")
     out = {k: row.get(k) for k in keys}
     out["usual_sizes"] = out["usual_sizes"] or {}
     out["onboarding_state"] = out["onboarding_state"] or {}

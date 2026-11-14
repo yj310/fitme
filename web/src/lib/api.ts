@@ -21,7 +21,6 @@ import type {
   Provider,
   Region,
   StyleAttributes,
-  StylePreset,
   StyleProfile,
   TagResult,
   TaskSetting,
@@ -138,9 +137,15 @@ export async function uploadImage(blob: Blob, contentType: string): Promise<stri
 }
 
 // ── 추구미 ──
-export const getStylePresets = () => request<{ presets: StylePreset[] }>("GET", "/style-presets");
-export const createStyleProfile = (body: { text: string } | { preset: string }) =>
-  request<StyleProfile>("POST", "/style-profiles", { body });
+export const createStyleProfile = (body: {
+  attributes: StyleAttributes;
+  style_name?: string;
+  source_text?: string;
+  is_default?: true;
+}) => request<StyleProfile>("POST", "/style-profiles", { body });
+/** Free text → attributes for the user to check in the steps (not saved). */
+export const analyzeStyle = (text: string) =>
+  request<{ style_name: string; attributes: StyleAttributes }>("POST", "/style-profiles/analyze", { body: { text } });
 export const listStyleProfiles = () => request<{ profiles: StyleProfile[] }>("GET", "/style-profiles");
 export const patchStyleProfile = (
   id: string,

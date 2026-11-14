@@ -62,8 +62,8 @@ async def run_outfits(args) -> dict:
     from app.config import get_pricing, get_settings, load_model_config
     from app.db.memory import MemoryStore
     from app.domain import taxonomy as tx
+    from app.domain.sample_style import SAMPLE_STYLE
     from app.llm.router import LLMService
-    from app.routers.styles import presets
 
     settings = get_settings()
     cfg = load_model_config(args.env)
@@ -78,12 +78,11 @@ async def run_outfits(args) -> dict:
         for req in requests:
             store = MemoryStore(f"eval-{req['id']}")
             await store.ensure_user("eval", None)
-            await store.update_user({"grid_nx": 60, "grid_ny": 127, "preferred_fit": "semi_over"})
+            await store.update_user({"grid_nx": 60, "grid_ny": 127})
             for w in wardrobe:
                 clean, _ = tx.normalize_tags(w)
                 await store.insert_item({**clean, "name": w["name"]})
-            p = next(p for p in presets() if p["key"] == "natural_minimal")
-            await store.insert_style({"style_name": p["style_name"], "attributes": p["attributes"], "is_default": True})
+            await store.insert_style({**SAMPLE_STYLE, "is_default": True})
             owned = {i["id"] for i in await store.list_items(active=True)}
             factory = None if args.llm == "live" else (lambda r: OfflineAdapter(r.provider))
             llm = LLMService(settings, cfg, get_pricing(), http, store, adapter_factory=factory)

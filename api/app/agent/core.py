@@ -33,8 +33,8 @@ class UserContext:
         return (self.style or {}).get("attributes") or {}
 
     def profile_summary(self) -> str:
-        fit = tx.label(self.user.get("preferred_fit")) or "선호 핏 없음"
-        return f"{fit} 선호"
+        top = (self.attrs.get("silhouette") or {}).get("top") or []
+        return f"{tx.label(top[0])} 핏 선호" if top else "선호 핏 없음"
 
     def style_summary(self) -> str:
         if not self.style:
@@ -98,10 +98,8 @@ class Constraints:
 
 
 def effective_exclusions(c: Constraints, uc: UserContext, occasion: str | None) -> tuple[set, set, set]:
-    """Conversation exclusions + onboarding avoid lists + style avoid + persistent rules for this occasion."""
+    """Conversation exclusions + the 추구미's avoid lists + persistent rules for this occasion."""
     ids, subs, colors = set(c.exclude_item_ids), set(c.exclude_subcategories), set(c.exclude_colors)
-    subs |= set(uc.user.get("avoid_subcategories") or [])
-    colors |= set(uc.user.get("avoid_colors") or [])
     avoid = uc.attrs.get("avoid") or {}
     subs |= set(avoid.get("subcategories") or [])
     colors |= set(avoid.get("colors") or [])

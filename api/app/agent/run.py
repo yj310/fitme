@@ -325,7 +325,7 @@ class AgentRun:
             style_tags=set(a.get("style_tags", [])) | set(self.request.get("style_tags", []))
             | set(self.constraints.style_tags),
             preferred_colors=set(a.get("preferred_colors", [])), request_formality=self.formality(),
-            temp=self.temp, wind=self.wind, rainy=self.rainy, preferred_fit=self.uc.user.get("preferred_fit"),
+            temp=self.temp, wind=self.wind, rainy=self.rainy,
             silhouette_top=set(sil.get("top", [])), silhouette_bottom=set(sil.get("bottom", [])),
             favorite_item_ids=self.uc.favorite_item_ids, favorite_colors=self.uc.favorite_colors,
             rerolled_pairs=self.uc.rerolled_pairs, want_accent=self.constraints.accent)

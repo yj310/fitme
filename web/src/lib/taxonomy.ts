@@ -1,6 +1,5 @@
 import taxonomy from "./taxonomy.json";
-import presetsJson from "./style_presets.json";
-import type { Category, StylePreset } from "./types";
+import type { Category } from "./types";
 
 export interface Opt<T = string> {
   code: T;
@@ -8,7 +7,6 @@ export interface Opt<T = string> {
 }
 
 export const T = taxonomy;
-export const STYLE_PRESETS = presetsJson.presets as StylePreset[];
 
 export const CATEGORIES = taxonomy.categories as Opt<Category>[];
 export const SUBCATEGORIES = taxonomy.subcategories as Record<Category, Opt[]>;

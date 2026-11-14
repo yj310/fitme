@@ -5,10 +5,19 @@ import { useCallback, useEffect, useState } from "react";
 import { ItemThumb } from "@/components/ItemThumb";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { BodyForm, bodyDraftFrom, bodyPatch, type BodyDraft } from "@/components/profile/BodyForm";
-import { StyleAttributeChips, StyleAttributesEditor, StyleCreator } from "@/components/profile/StyleEditor";
-import { RegionPicker } from "@/components/RegionPicker";
-import { Badge, Banner, Button, Card, CardTitle, Chip, EmptyState, ErrorState, LoadingState, Modal, PageHeader, Select, toggleIn } from "@/components/ui";
 import {
+  EMPTY_DRAFT,
+  StyleAttributeChips,
+  StyleStepper,
+  attributesOf,
+  draftFrom,
+  lookPerson,
+  type StyleDraft,
+} from "@/components/profile/StyleSteps";
+import { RegionPicker } from "@/components/RegionPicker";
+import { Badge, Banner, Button, Card, CardTitle, Chip, EmptyState, ErrorState, LoadingState, Modal, PageHeader, Select } from "@/components/ui";
+import {
+  createStyleProfile,
   deleteExclusion,
   deleteStyleProfile,
   errorMessage,
@@ -19,8 +28,8 @@ import {
   patchStyleProfile,
 } from "@/lib/api";
 import { shortDate } from "@/lib/format";
-import { ALL_SUBCATEGORIES, COLORS, PERSONAL_COLORS, TOP_FITS, label, labels } from "@/lib/taxonomy";
-import type { LearningLog, OutfitCard, StyleAttributes, StyleProfile, User } from "@/lib/types";
+import { PERSONAL_COLORS, label } from "@/lib/taxonomy";
+import type { LearningLog, OutfitCard, StyleProfile, User } from "@/lib/types";
 
 export default function MePage() {
   const { me, setMe, refreshMe } = useAuth();
@@ -95,12 +104,13 @@ export default function MePage() {
 }
 
 // ── 추구미 카드 ──
+// Every 추구미 is made and edited with the same steps as onboarding; the default one drives the outfits.
 function StyleCard({ onChanged }: { onChanged: () => void }) {
   const { me } = useAuth();
   const [profiles, setProfiles] = useState<StyleProfile[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<StyleProfile | null>(null);
+  // null: closed · "new": 추가 · a profile: 고치기
+  const [open, setOpen] = useState<StyleProfile | "new" | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -118,6 +128,7 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
 
   const def = profiles?.find((p) => p.is_default) ?? profiles?.[0];
   const others = profiles?.filter((p) => p.id !== def?.id) ?? [];
+  const person = lookPerson(me?.gender, me?.height_cm);
 
   const act = async (fn: () => Promise<unknown>) => {
     try {
@@ -129,12 +140,21 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
     }
   };
 
+  const submit = async (d: StyleDraft) => {
+    const body = { style_name: d.style_name.trim() || undefined, attributes: attributesOf(d) };
+    if (open === "new") await createStyleProfile({ ...body, source_text: d.source_text.trim() || undefined });
+    else if (open) await patchStyleProfile(open.id, body);
+    setOpen(null);
+    await load();
+    onChanged();
+  };
+
   return (
     <Card>
       <CardTitle
         right={
-          <Button variant="subtle" className="!px-2 !py-0.5 text-xs" onClick={() => setAdding(true)}>
-            + 추가
+          <Button variant="subtle" className="!px-2 !py-0.5 text-xs" onClick={() => setOpen("new")}>
+            + 추구미 추가
           </Button>
         }
       >
@@ -144,17 +164,18 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
       {!profiles ? (
         <LoadingState />
       ) : !def ? (
-        <EmptyState title="추구미가 없어요" action={<Button onClick={() => setAdding(true)}>추구미 정하기</Button>} />
+        <EmptyState title="추구미가 없어요" action={<Button onClick={() => setOpen("new")}>추구미 만들기</Button>} />
       ) : (
         <>
           <div className="flex items-center justify-between gap-2">
             <span className="font-semibold">
-              {def.style_name} {def.is_default && <Badge>기본</Badge>}
+              {def.style_name} <Badge>대표</Badge>
             </span>
-            <Button variant="subtle" className="!px-2 !py-0.5 text-xs" onClick={() => setEditing(def)}>
-              수정
+            <Button variant="subtle" className="!px-2 !py-0.5 text-xs" onClick={() => setOpen(def)}>
+              고치기
             </Button>
           </div>
+          <p className="text-xs text-muted">코디는 대표 추구미를 기준으로 골라요.</p>
           <StyleAttributeChips a={def.attributes} />
           {others.length > 0 && (
             <div className="flex flex-col gap-1 border-t border-line pt-2 text-[13px]">
@@ -164,10 +185,10 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
                   <span className="truncate">{p.style_name}</span>
                   <span className="flex shrink-0 gap-0.5">
                     <Button variant="subtle" className="!px-1.5 !py-0 text-xs" onClick={() => act(() => patchStyleProfile(p.id, { is_default: true }))}>
-                      기본으로
+                      대표로
                     </Button>
-                    <Button variant="subtle" className="!px-1.5 !py-0 text-xs" onClick={() => setEditing(p)}>
-                      수정
+                    <Button variant="subtle" className="!px-1.5 !py-0 text-xs" onClick={() => setOpen(p)}>
+                      고치기
                     </Button>
                     <Button variant="subtle" className="!px-1.5 !py-0 text-xs" onClick={() => act(() => deleteStyleProfile(p.id))}>
                       삭제
@@ -179,72 +200,31 @@ function StyleCard({ onChanged }: { onChanged: () => void }) {
           )}
         </>
       )}
-      <Modal open={adding} title="추구미 추가" onClose={() => setAdding(false)} width={720}>
-        <StyleCreator
-          gender={me?.gender}
-          onCreated={(p) => {
-            setAdding(false);
-            void load().then(() => setEditing(p));
-            onChanged();
-          }}
-        />
+      <Modal open={open !== null} title={open === "new" ? "새 추구미" : "추구미 고치기"} onClose={() => setOpen(null)} width={980}>
+        {open !== null && (
+          <>
+            {open === "new" && def && (
+              <p className="mb-4 rounded-[12px] bg-accent-soft px-4 py-3 text-[13.5px] text-accent">
+                대표 추구미 &lsquo;{def.style_name}&rsquo;에서 시작해요. 이 추구미에서 달라지는 것만 바꿔 주세요.
+              </p>
+            )}
+            <StyleStepper
+              key={open === "new" ? "new" : open.id}
+              initial={open === "new" ? (def ? { ...draftFrom(def), style_name: "", source_text: "" } : EMPTY_DRAFT) : draftFrom(open)}
+              person={person}
+              submitLabel={open === "new" ? "추구미 만들기" : "저장"}
+              onSubmit={submit}
+            />
+          </>
+        )}
       </Modal>
-      <StyleEditModal
-        profile={editing}
-        onClose={() => setEditing(null)}
-        onSaved={() => {
-          setEditing(null);
-          void load();
-          onChanged();
-        }}
-      />
     </Card>
   );
 }
 
-function StyleEditModal({ profile, onClose, onSaved }: { profile: StyleProfile | null; onClose: () => void; onSaved: () => void }) {
-  return (
-    <Modal open={Boolean(profile)} title="추구미 확인·수정" onClose={onClose} width={680}>
-      {profile && <StyleEditBody key={profile.id} profile={profile} onSaved={onSaved} />}
-    </Modal>
-  );
-}
-
-function StyleEditBody({ profile, onSaved }: { profile: StyleProfile; onSaved: () => void }) {
-  const [name, setName] = useState(profile.style_name);
-  const [attrs, setAttrs] = useState<StyleAttributes>(profile.attributes);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const save = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await patchStyleProfile(profile.id, { style_name: name.trim() || profile.style_name, attributes: attrs });
-      onSaved();
-    } catch (e) {
-      setError(errorMessage(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="flex flex-col gap-3">
-      {profile.source_text && <p className="rounded-[8px] bg-tile px-3 py-2 text-[13px] text-muted">입력: “{profile.source_text}”</p>}
-      <StyleAttributesEditor name={name} onNameChange={setName} value={attrs} onChange={setAttrs} />
-      {error && <Banner tone="danger">{error}</Banner>}
-      <div className="flex justify-end">
-        <Button onClick={save} loading={busy}>
-          저장
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── 선호 · 제외 카드 ──
+// ── 기억 · 설정 카드 ──
 function PreferenceCard({ me, setMe, onChanged }: { me: User; setMe: (u: User) => void; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
-  const [editingAvoid, setEditingAvoid] = useState(false);
   const [changingRegion, setChangingRegion] = useState(false);
 
   const patch = async (body: Parameters<typeof patchMe>[0]) => {
@@ -269,25 +249,10 @@ function PreferenceCard({ me, setMe, onChanged }: { me: User; setMe: (u: User) =
 
   return (
     <Card>
-      <CardTitle>선호 · 제외</CardTitle>
+      <CardTitle>기억 · 설정</CardTitle>
       {error && <Banner tone="danger">{error}</Banner>}
       <div className="flex flex-col gap-1.5">
-        <span className="text-xs text-muted">선호 핏</span>
-        <div className="flex flex-wrap gap-1">
-          {TOP_FITS.map((f) => (
-            <Chip key={f.code} on={me.preferred_fit === f.code} onClick={() => patch({ preferred_fit: f.code })}>
-              {f.label}
-            </Chip>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <span className="flex items-center justify-between text-xs text-muted">
-          제외 아이템
-          <Button variant="subtle" className="!px-1.5 !py-0 text-xs" onClick={() => setEditingAvoid(true)}>
-            편집
-          </Button>
-        </span>
+        <span className="text-xs text-muted">대화에서 기억한 제외</span>
         <div className="flex flex-wrap gap-1">
           {me.persistent_exclusions.map((x) => (
             <span key={x.id} className="inline-flex items-center gap-1 rounded-full border border-line-strong px-2.5 py-0.5 text-xs">
@@ -298,16 +263,9 @@ function PreferenceCard({ me, setMe, onChanged }: { me: User; setMe: (u: User) =
               </button>
             </span>
           ))}
-          {labels("subcategory", me.avoid_subcategories).map((l) => (
-            <Chip key={l}>{l}</Chip>
-          ))}
-          {labels("color", me.avoid_colors).map((l) => (
-            <Chip key={l}>{l}색</Chip>
-          ))}
-          {!me.persistent_exclusions.length && !me.avoid_subcategories.length && !me.avoid_colors.length && (
-            <span className="text-xs text-muted">없어요</span>
-          )}
+          {!me.persistent_exclusions.length && <span className="text-xs text-muted">없어요. 대화에서 &ldquo;앞으로 ○○ 빼줘&rdquo;라고 하면 여기에 남아요.</span>}
         </div>
+        <span className="text-xs text-muted">피하는 색·옷은 추구미에서 정해요.</span>
       </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-xs text-muted">
@@ -338,72 +296,7 @@ function PreferenceCard({ me, setMe, onChanged }: { me: User; setMe: (u: User) =
           />
         )}
       </div>
-      <AvoidModal open={editingAvoid} me={me} onClose={() => setEditingAvoid(false)} onSave={patch} />
     </Card>
-  );
-}
-
-function AvoidModal({
-  open,
-  me,
-  onClose,
-  onSave,
-}: {
-  open: boolean;
-  me: User;
-  onClose: () => void;
-  onSave: (b: { avoid_subcategories: string[]; avoid_colors: string[] }) => Promise<void>;
-}) {
-  return (
-    <Modal open={open} title="피하는 아이템·색" onClose={onClose} width={640}>
-      {open && <AvoidBody me={me} onClose={onClose} onSave={onSave} />}
-    </Modal>
-  );
-}
-
-function AvoidBody({
-  me,
-  onClose,
-  onSave,
-}: {
-  me: User;
-  onClose: () => void;
-  onSave: (b: { avoid_subcategories: string[]; avoid_colors: string[] }) => Promise<void>;
-}) {
-  const [subs, setSubs] = useState(me.avoid_subcategories);
-  const [colors, setColors] = useState(me.avoid_colors);
-  const [busy, setBusy] = useState(false);
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[13px] text-muted">여기서 고른 아이템·색은 모든 상황의 코디에서 빠져요.</p>
-      <div className="flex flex-wrap gap-1">
-        {ALL_SUBCATEGORIES.map((s) => (
-          <Chip key={s.code} on={subs.includes(s.code)} onClick={() => setSubs((v) => toggleIn(v, s.code))}>
-            {label("subcategory", s.code)}
-          </Chip>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {COLORS.map((c) => (
-          <Chip key={c.code} on={colors.includes(c.code)} onClick={() => setColors((v) => toggleIn(v, c.code))}>
-            {c.label}
-          </Chip>
-        ))}
-      </div>
-      <div className="flex justify-end">
-        <Button
-          loading={busy}
-          onClick={async () => {
-            setBusy(true);
-            await onSave({ avoid_subcategories: subs, avoid_colors: colors });
-            setBusy(false);
-            onClose();
-          }}
-        >
-          저장
-        </Button>
-      </div>
-    </div>
   );
 }
 

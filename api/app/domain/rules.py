@@ -235,7 +235,6 @@ class ScoreContext:
     temp: float | None
     wind: float | None
     rainy: bool
-    preferred_fit: str | None
     silhouette_top: set[str]
     silhouette_bottom: set[str]
     favorite_item_ids: Counter = field(default_factory=Counter)
@@ -316,11 +315,8 @@ def _preference_score(items: list[Item], ctx: ScoreContext) -> float:
     fit_checks: list[bool] = []
     for i in items:
         if i["category"] in ("top", "outer"):
-            wanted = set(ctx.silhouette_top)
-            if ctx.preferred_fit:
-                wanted.add(ctx.preferred_fit)
-            if wanted:
-                fit_checks.append(i.get("fit") in wanted)
+            if ctx.silhouette_top:
+                fit_checks.append(i.get("fit") in ctx.silhouette_top)
         elif i["category"] == "bottom" and ctx.silhouette_bottom:
             fit_checks.append(i.get("fit") in ctx.silhouette_bottom)
     fit = sum(fit_checks) / len(fit_checks) if fit_checks else 0.5

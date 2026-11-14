@@ -205,17 +205,30 @@ def test_tagging_and_items(h):
     assert lst["items"] == [] and lst["counts"]["archived"] == 1
 
 
-def test_style_profiles_preset_no_llm(h):
+def test_style_profiles_create_and_analyze(h):
     run(h.seed())
     before = len(h.calls)
-    p = h.client.post("/api/v1/style-profiles", json={"preset": "natural_minimal"}).json()
-    assert p["is_default"] and p["attributes"]["style_tags"] == ["minimal", "casual"]
+    attrs = {"style_tags": ["minimal", "casual"], "silhouette": {"top": ["regular"], "bottom": ["straight"]},
+             "preferred_colors": ["navy", "neon"], "avoid": {"subcategories": ["hoodie"], "colors": []}}
+    p = h.client.post("/api/v1/style-profiles", json={"attributes": attrs}).json()
+    # first one is the default, unnamed → named from its style tags, unknown codes dropped, no LLM call
+    assert p["is_default"] and p["style_name"] == "미니멀 · 캐주얼" and p["attributes"]["preferred_colors"] == ["navy"]
     assert len(h.calls) == before
-    q = h.client.post("/api/v1/style-profiles", json={"text": "꾸안꾸 느낌의 편한 캐주얼"}).json()
-    assert q["style_name"] == "꾸안꾸 캐주얼" and not q["is_default"]
-    h.client.patch(f"/api/v1/style-profiles/{q['id']}", json={"is_default": True})
+    a = h.client.post("/api/v1/style-profiles/analyze", json={"text": "꾸안꾸 느낌의 편한 캐주얼"}).json()
+    assert a["style_name"] == "꾸안꾸 캐주얼" and "style_tags" in a["attributes"]
+    assert len(h.client.get("/api/v1/style-profiles").json()["profiles"]) == 1  # analyze doesn't save
+    q = h.client.post("/api/v1/style-profiles", json={"style_name": "출근룩", "attributes": attrs, "is_default": True}).json()
     profiles = h.client.get("/api/v1/style-profiles").json()["profiles"]
-    assert [x["is_default"] for x in profiles] == [False, True]
+    assert q["is_default"] and [x["is_default"] for x in profiles] == [False, True]
+
+
+def test_style_avoid_list_applies(h):
+    run(h.seed())
+    attrs = {"style_tags": ["minimal"], "avoid": {"subcategories": ["denim"], "colors": []}}
+    h.client.post("/api/v1/style-profiles", json={"attributes": attrs})
+    outfits = events_of(h.chat("내일 출근 코디 추천해줘"), "outfits")[0]["outfits"]
+    subs = {i["subcategory"] for o in outfits for i in o["items"]}
+    assert outfits and "denim" not in subs
 
 
 def test_ask_when_included_item_missing(h):

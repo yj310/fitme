@@ -49,8 +49,7 @@ interface StyleAttributes {
 interface StyleProfile {
   id: string;
   style_name: string;
-  source_text: string | null;
-  preset_key: string | null;
+  source_text: string | null;      // 직접 적기로 만든 경우 그 문장
   attributes: StyleAttributes;
   is_default: boolean;
   created_at: string;
@@ -107,8 +106,6 @@ type Weather = WeatherSummary | { available: false; date: string; reason: "OUT_O
 ```ts
 interface User {
   id: string; nickname: string | null; avatar_url: string | null;
-  preferred_fit: string | null; style_tags: string[];
-  avoid_colors: string[]; avoid_subcategories: string[];
   personal_color: string | null;
   home_region: string | null; region_code: string | null; grid_nx: number | null; grid_ny: number | null;
   gender: "female" | "male" | null;   // 온보딩 첫 단계. 핏·스타일 사진 고르는 데만 쓰고 AI에 보내지 않음
@@ -116,7 +113,7 @@ interface User {
   usual_sizes: { top?: "S"|"M"|"L"|"XL"; bottom_waist?: number };
   body_traits: string[];
   body_measurements: { shoulder?: number|null; chest?: number|null; waist?: number|null; hip?: number|null } | null;
-  onboarding_state: { steps?: Record<"fit"|"style"|"body"|"closet", { status: "done"|"skipped"; at: string }>; completed_at?: string };
+  onboarding_state: { steps?: Record<"body"|"style"|"closet", { status: "done"|"skipped"; at: string }>; completed_at?: string };
   persistent_exclusions: { id: string; type: string; target: string; target_label: string; scope: string[] | null; created_at: string }[];
   // type: exclude_item | exclude_subcategory | exclude_group | exclude_color. exclude_group의 target은 taxonomy.groups 코드(pants, skirts, dresses, outerwear, tees), target_label은 "바지" 등
   default_style: { id: string; style_name: string } | null;
@@ -141,8 +138,9 @@ interface User {
 - DELETE `/items/{id}` → 204 (사진도 삭제)
 
 ### 추구미 (F04)
-- GET `/style-presets` → `{ presets: { key, style_name, icons: string[], attributes: StyleAttributes }[] }`
-- POST `/style-profiles` `{ text }` 또는 `{ preset }` → `StyleProfile` (저장까지 함. 첫 추구미면 기본)
+추구미 하나에 핏·스타일·색·피하는 것이 모두 들어 있다 (결정 13). 코디는 대표(`is_default`) 추구미를 따른다.
+- POST `/style-profiles` `{ attributes: StyleAttributes, style_name?, source_text?, is_default?: true }` → `StyleProfile` (첫 추구미면 대표. 이름이 없으면 스타일로 지음, 예: "미니멀 · 캐주얼")
+- POST `/style-profiles/analyze` `{ text }` → `{ style_name, attributes }` (AI 분석만, 저장하지 않음. 사용자가 단계 화면에서 확인한 뒤 POST로 저장)
 - GET `/style-profiles` → `{ profiles: StyleProfile[] }`
 - PATCH `/style-profiles/{id}` `{ style_name?, attributes?, is_default?: true }` → `StyleProfile`
 - DELETE `/style-profiles/{id}` → 204

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/AppShell";
@@ -9,90 +8,38 @@ import { MAX_FILES, useUploadQueue } from "@/components/closet/useUploadQueue";
 import { DevBand } from "@/components/DevBand";
 import { ItemThumb } from "@/components/ItemThumb";
 import { onboardingDone, useAuth } from "@/components/providers/AuthProvider";
+import { BodyFigure, BodyForm, GENDERS, bodyDraftFrom, bodyPatch, type BodyDraft } from "@/components/profile/BodyForm";
 import {
-  BodyFigure,
-  BodyForm,
-  GENDERS,
-  bodyDraftFrom,
-  bodyPatch,
-  type BodyDraft,
-} from "@/components/profile/BodyForm";
-import {
-  StyleAttributesEditor,
-  StyleCreator,
-} from "@/components/profile/StyleEditor";
-import { ClothingIcon, TYPICAL_COLOR } from "@/components/ClothingIcon";
-import { Banner, Button, LoadingState, toggleIn } from "@/components/ui";
-import {
-  deleteStyleProfile,
-  errorMessage,
-  listStyleProfiles,
-  patchMe,
-  patchStyleProfile,
-} from "@/lib/api";
+  EMPTY_DRAFT,
+  Heading,
+  Look,
+  STYLE_PAGES,
+  StylePage,
+  Tile,
+  attributesOf,
+  draftFrom,
+  lookPerson,
+  pageError,
+  pageIsEmpty,
+  styleSrc,
+  type StyleDraft,
+} from "@/components/profile/StyleSteps";
+import { Banner, Button, LoadingState } from "@/components/ui";
+import { createStyleProfile, errorMessage, listStyleProfiles, patchMe, patchStyleProfile } from "@/lib/api";
 import { cx } from "@/lib/format";
-import {
-  CATEGORIES,
-  COLORS,
-  STYLE_TAGS,
-  SUBCATEGORIES,
-  TOP_FITS,
-} from "@/lib/taxonomy";
-import type {
-  Gender,
-  Item,
-  OnboardingStep,
-  StyleAttributes,
-  StyleProfile,
-  User,
-} from "@/lib/types";
+import type { Item, OnboardingStep, User } from "@/lib/types";
 
+// 내 몸 → 내 추구미 (fit, styles, colors, items: saved as the default 추구미) → 옷 등록. Decision 13.
 const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "body", label: "내 몸" },
-  { key: "fit", label: "취향" },
-  { key: "style", label: "추구미" },
+  { key: "style", label: "내 추구미" },
   { key: "closet", label: "옷 등록" },
 ];
-const S = { body: 0, pref: 1, style: 2, closet: 3 } as const;
+const S = { body: 0, style: 1, closet: 2 } as const;
 
 // Steps with several short pages, one question each.
 const BODY_PAGES = ["gender", "size"] as const;
-const PREF_PAGES = ["fit", "style", "colors", "items"] as const;
-const pagesOf = (step: number) =>
-  step === S.body ? BODY_PAGES.length : step === S.pref ? PREF_PAGES.length : 1;
-
-// Lookbook images generated for FITME (Figma AI) in public/onboarding/, picked by gender and height.
-const STYLE_WORDS: Record<string, string> = {
-  minimal: "무채색 · 군더더기 없이",
-  casual: "맨투맨 · 청바지 · 편하게",
-  street: "후드 · 카고 · 캡",
-  office: "블레이저 · 슬랙스 · 단정",
-  feminine: "파스텔 · 부드러운 소재",
-  classic: "트렌치 · 로퍼 · 정갈하게",
-  sporty: "트랙 재킷 · 조거 · 활동적",
-  vintage: "가디건 · 브라운 톤 · 레트로",
-  french_chic: "스트라이프 · 베레모 · 무심한 듯",
-  amekaji: "체크 셔츠 · 데님 · 워커",
-};
-
-const FIT_WORDS: Record<string, string> = {
-  slim: "몸에 딱 맞게",
-  regular: "적당히 여유 있게",
-  semi_over: "살짝 넉넉하게",
-  over: "크고 루즈하게",
-};
-
-/** From this height (cm) the "tall" pictures are shown. Roughly the Korean average for each. */
-const TALL_FROM: Record<Gender, number> = { female: 163, male: 176 };
-
-function lookPerson(
-  gender: Gender | "",
-  height: string,
-): { gender: Gender; tall: boolean } {
-  const g = gender || "female";
-  const h = Number(height);
-  return { gender: g, tall: !h || h >= TALL_FROM[g] };
-}
+const pagesOf = (step: number) => (step === S.body ? BODY_PAGES.length : step === S.style ? STYLE_PAGES.length : 1);
 
 function firstOpenStep(me: User): number {
   if (!me.gender || !me.height_cm) return S.body; // the pictures need both
@@ -130,51 +77,37 @@ function Wizard({ me }: { me: User }) {
 
   // 내 몸
   const [body, setBody] = useState<BodyDraft>(() => bodyDraftFrom(me));
-  // 취향
-  const [fit, setFit] = useState<string>(me.preferred_fit ?? "");
-  const [styleTags, setStyleTags] = useState<string[]>(me.style_tags);
-  const [avoidColors, setAvoidColors] = useState<string[]>(me.avoid_colors);
-  const [avoidSubs, setAvoidSubs] = useState<string[]>(me.avoid_subcategories);
-  // 추구미
-  const [profile, setProfile] = useState<StyleProfile | null>(null);
-  const [styleName, setStyleName] = useState("");
-  const [attrs, setAttrs] = useState<StyleAttributes | null>(null);
-  // The profile the user set aside with "다른 추구미 고르기": it is replaced once a new one is made.
-  const [replaced, setReplaced] = useState<StyleProfile | null>(null);
+  // 내 추구미: the default 추구미, if there already is one (coming back to onboarding)
+  const [style, setStyle] = useState<StyleDraft>(EMPTY_DRAFT);
+  const [styleId, setStyleId] = useState<string | null>(null);
+  const [styleLoaded, setStyleLoaded] = useState(false);
   // 옷 등록
   const [saved, setSaved] = useState<Item[]>([]);
-  const onSaved = useCallback(
-    (item: Item) => setSaved((s) => [...s, item]),
-    [],
-  );
+  const onSaved = useCallback((item: Item) => setSaved((s) => [...s, item]), []);
   const queue = useUploadQueue(onSaved);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const person = lookPerson(body.gender, body.height_cm);
-  const fitSrc = (code: string) =>
-    `/onboarding/fit-${person.gender}-${person.tall ? "tall" : "short"}-${code}.webp`;
-  const styleSrc = (code: string) =>
-    `/onboarding/style-${person.gender}-${code}.webp`;
 
-  // Resume an existing default style profile when coming back to 추구미
-  // (not while the user is picking a different one, or it would pop right back).
   useEffect(() => {
-    if (step !== S.style || profile || replaced) return;
+    if (step !== S.style || styleLoaded) return;
     let alive = true;
     listStyleProfiles()
       .then((r) => {
         const p = r.profiles.find((x) => x.is_default) ?? r.profiles[0];
         if (alive && p) {
-          setProfile(p);
-          setStyleName(p.style_name);
-          setAttrs(p.attributes);
+          setStyle(draftFrom(p));
+          setStyleId(p.id);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setStyleLoaded(true);
+      });
     return () => {
       alive = false;
     };
-  }, [step, profile, replaced]);
+  }, [step, styleLoaded]);
 
   const closetCount = me.closet_count + saved.length;
 
@@ -197,6 +130,16 @@ function Wizard({ me }: { me: User }) {
     }
   };
 
+  const saveStyle = async () => {
+    const body = { style_name: style.style_name.trim() || undefined, attributes: attributesOf(style) };
+    if (styleId) await patchStyleProfile(styleId, { ...body, is_default: true });
+    else {
+      const p = await createStyleProfile({ ...body, source_text: style.source_text.trim() || undefined, is_default: true });
+      setStyleId(p.id);
+    }
+    return patchMe({ onboarding_step: { step: "style", status: "done" } });
+  };
+
   const next = () => {
     if (step === S.body) {
       if (BODY_PAGES[page] === "gender") {
@@ -204,57 +147,21 @@ function Wizard({ me }: { me: User }) {
         return void save(() => patchMe({ gender: body.gender || undefined }));
       }
       const h = Number(body.height_cm);
-      if (!h || h < 100 || h > 230)
-        return setError("키를 cm로 적어 주세요. 나머지 칸은 비워도 돼요.");
-      return void save(() =>
-        patchMe({
-          ...bodyPatch(body),
-          onboarding_step: { step: "body", status: "done" },
-        }),
-      );
-    }
-    if (step === S.pref) {
-      const p = PREF_PAGES[page];
-      if (p === "fit" && !fit)
-        return setError("가장 좋아하는 핏을 하나 골라 주세요.");
-      if (p === "style" && styleTags.length === 0)
-        return setError("끌리는 스타일을 하나 이상 골라 주세요.");
-      const patch =
-        p === "fit"
-          ? { preferred_fit: fit }
-          : p === "style"
-            ? { style_tags: styleTags }
-            : p === "colors"
-              ? { avoid_colors: avoidColors }
-              : {
-                  avoid_subcategories: avoidSubs,
-                  onboarding_step: {
-                    step: "fit" as const,
-                    status: "done" as const,
-                  },
-                };
-      return void save(() => patchMe(patch));
+      if (!h || h < 100 || h > 230) return setError("키를 cm로 적어 주세요. 나머지 칸은 비워도 돼요.");
+      return void save(() => patchMe({ ...bodyPatch(body), onboarding_step: { step: "body", status: "done" } }));
     }
     if (step === S.style) {
-      if (!profile || !attrs) return setError("추구미를 하나 골라 주세요.");
-      return void save(async () => {
-        await patchStyleProfile(profile.id, {
-          style_name: styleName.trim() || profile.style_name,
-          attributes: attrs,
-          is_default: true,
-        });
-        return patchMe({ onboarding_step: { step: "style", status: "done" } });
-      });
+      const err = pageError(STYLE_PAGES[page], style);
+      if (err) return setError(err);
+      if (page < STYLE_PAGES.length - 1) return void save(async () => {});
+      return void save(saveStyle);
     }
     void finish("done");
   };
 
   const finish = (status: "done" | "skipped") =>
     save(async () => {
-      const u = await patchMe({
-        onboarding_step: { step: "closet", status },
-        complete_onboarding: true,
-      });
+      const u = await patchMe({ onboarding_step: { step: "closet", status }, complete_onboarding: true });
       setMe(u);
       router.replace("/chat");
       return u;
@@ -269,10 +176,7 @@ function Wizard({ me }: { me: User }) {
     }
   };
 
-  const optionalEmpty =
-    step === S.pref &&
-    ((PREF_PAGES[page] === "colors" && !avoidColors.length) ||
-      (PREF_PAGES[page] === "items" && !avoidSubs.length));
+  const optionalEmpty = step === S.style && pageIsEmpty(STYLE_PAGES[page], style);
   const counter = (n: number) => `${page + 1} / ${n}`;
 
   return (
@@ -280,34 +184,21 @@ function Wizard({ me }: { me: User }) {
       <DevBand />
       <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-8">
         <Logo />
-        <ol
-          className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:gap-2"
-          aria-label="온보딩 단계"
-        >
+        <ol className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:gap-2" aria-label="온보딩 단계">
           {STEPS.map((s, i) => (
             <li key={s.key} className="flex items-center gap-2">
               <span
                 aria-current={i === step ? "step" : undefined}
                 className={cx(
                   "flex items-center gap-1.5 rounded-full px-2.5 py-1",
-                  i === step
-                    ? "bg-accent text-accent-ink"
-                    : i < step
-                      ? "bg-accent-soft text-accent"
-                      : "text-muted",
+                  i === step ? "bg-accent text-accent-ink" : i < step ? "bg-accent-soft text-accent" : "text-muted",
                 )}
               >
-                <span className="font-mono text-xs">
-                  {i < step ? "✓" : i + 1}
-                </span>
+                <span className="font-mono text-xs">{i < step ? "✓" : i + 1}</span>
                 {/* phones: only the current step keeps its name */}
-                <span className={cx(i !== step && "hidden sm:inline")}>
-                  {s.label}
-                </span>
+                <span className={cx(i !== step && "hidden sm:inline")}>{s.label}</span>
               </span>
-              {i < STEPS.length - 1 && (
-                <span aria-hidden className="h-px w-2 bg-line-strong sm:w-4" />
-              )}
+              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-2 bg-line-strong sm:w-4" />}
             </li>
           ))}
         </ol>
@@ -317,11 +208,7 @@ function Wizard({ me }: { me: User }) {
       <main className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col gap-5 px-4 py-6 sm:px-8 sm:py-8">
         {step === S.body && BODY_PAGES[page] === "gender" && (
           <section className="flex flex-col gap-6">
-            <Heading
-              step={counter(BODY_PAGES.length)}
-              title="성별을 알려 주세요"
-              sub="핏과 스타일 사진을 내 성별에 맞춰 보여 드려요. AI에는 보내지 않아요."
-            />
+            <Heading step={counter(BODY_PAGES.length)} title="성별을 알려 주세요" sub="핏과 스타일 사진을 내 성별에 맞춰 보여 드려요. AI에는 보내지 않아요." />
             <div className="mx-auto grid w-full max-w-[560px] grid-cols-2 gap-4">
               {GENDERS.map((g) => (
                 <Tile
@@ -329,9 +216,7 @@ function Wizard({ me }: { me: User }) {
                   on={body.gender === g.code}
                   onClick={() => setBody({ ...body, gender: g.code })}
                   label={g.label}
-                  media={
-                    <Look src={`/onboarding/style-${g.code}-casual.webp`} />
-                  }
+                  media={<Look src={styleSrc({ gender: g.code, tall: true }, "casual")} />}
                 />
               ))}
             </div>
@@ -347,9 +232,7 @@ function Wizard({ me }: { me: User }) {
             />
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
               <div className="hidden flex-col items-center gap-2 rounded-[14px] border border-line bg-surface p-4 md:flex">
-                <span className="text-[13px] font-semibold">
-                  줄자 재는 위치
-                </span>
+                <span className="text-[13px] font-semibold">줄자 재는 위치</span>
                 <BodyFigure />
               </div>
               <BodyForm value={body} onChange={setBody} gender={false} />
@@ -357,183 +240,19 @@ function Wizard({ me }: { me: User }) {
           </section>
         )}
 
-        {step === S.pref && PREF_PAGES[page] === "fit" && (
-          <section className="flex flex-col gap-6">
-            <Heading
-              step={counter(PREF_PAGES.length)}
-              title="어떤 핏을 가장 좋아하세요?"
-              sub={`같은 옷을 핏만 다르게 입은 모습이에요 (${person.gender === "female" ? "여성" : "남성"} · 키 ${person.tall ? "큰" : "작은"} 편 기준).`}
-            />
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {TOP_FITS.map((f) => (
-                <Tile
-                  key={f.code}
-                  on={fit === f.code}
-                  onClick={() => setFit(f.code)}
-                  label={f.label}
-                  desc={FIT_WORDS[f.code]}
-                  media={<Look src={fitSrc(f.code)} crop />}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {step === S.pref && PREF_PAGES[page] === "style" && (
-          <section className="flex flex-col gap-6">
-            <Heading
-              step={counter(PREF_PAGES.length)}
-              title="끌리는 스타일을 골라 주세요"
-              sub={`최대 3개까지 고를 수 있어요. ${styleTags.length ? `${styleTags.length}개 골랐어요.` : ""}`}
-            />
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {STYLE_TAGS.map((t) => (
-                <Tile
-                  key={t.code}
-                  on={styleTags.includes(t.code)}
-                  disabled={
-                    !styleTags.includes(t.code) && styleTags.length >= 3
-                  }
-                  onClick={() => setStyleTags((v) => toggleIn(v, t.code, 3))}
-                  label={t.label}
-                  desc={STYLE_WORDS[t.code]}
-                  media={<Look src={styleSrc(t.code)} />}
-                />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {step === S.pref && PREF_PAGES[page] === "colors" && (
-          <section className="flex flex-col gap-6">
-            <Heading
-              step={counter(PREF_PAGES.length)}
-              title="입기 싫은 색이 있나요?"
-              sub="고른 색은 코디에 넣지 않아요. 없으면 그냥 넘어가도 돼요."
-            />
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-              {COLORS.map((c) => (
-                <Tile
-                  key={c.code}
-                  avoid
-                  on={avoidColors.includes(c.code)}
-                  onClick={() => setAvoidColors((v) => toggleIn(v, c.code))}
-                  label={c.label}
-                >
-                  <span
-                    aria-hidden
-                    className="my-2 block h-16 w-16 rounded-full border border-line-strong shadow-inner"
-                    style={{ background: c.hex }}
-                  />
-                </Tile>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {step === S.pref && PREF_PAGES[page] === "items" && (
-          <section className="flex flex-col gap-6">
-            <Heading
-              step={counter(PREF_PAGES.length)}
-              title="입지 않는 옷이 있나요?"
-              sub="고른 옷은 추천에서 빼요. 없으면 그냥 넘어가도 돼요."
-            />
-            {CATEGORIES.map((cat) => (
-              <div key={cat.code} className="flex flex-col gap-2">
-                <h2 className="text-[14px] font-semibold text-muted">
-                  {cat.label}
-                </h2>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
-                  {SUBCATEGORIES[cat.code].map((sub) => (
-                    <Tile
-                      key={sub.code}
-                      avoid
-                      on={avoidSubs.includes(sub.code)}
-                      onClick={() => setAvoidSubs((v) => toggleIn(v, sub.code))}
-                      label={sub.label}
-                    >
-                      <ClothingIcon
-                        subcategory={sub.code}
-                        color={TYPICAL_COLOR[sub.code] ?? "white"}
-                        size={cat.code === "shoes" ? 84 : 64}
-                      />
-                    </Tile>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
-
-        {step === S.style && (
-          <section className="flex flex-col gap-5">
-            <Heading
-              title="되고 싶은 스타일, 추구미를 알려주세요"
-              sub="고르거나 직접 적으면 색·실루엣·무드로 정리해 드려요. 나중에 바꿀 수 있어요."
-            />
-            {!profile || !attrs ? (
-              <>
-                {replaced && (
-                  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-surface px-4 py-3 text-[13.5px]">
-                    <span className="text-muted">
-                      지금 추구미:{" "}
-                      <span className="font-semibold text-ink">
-                        {replaced.style_name}
-                      </span>
-                    </span>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setProfile(replaced);
-                        setStyleName(replaced.style_name);
-                        setAttrs(replaced.attributes);
-                        setReplaced(null);
-                      }}
-                    >
-                      그대로 쓰기
-                    </Button>
-                  </div>
-                )}
-                <StyleCreator
-                  gender={body.gender || null}
-                  onCreated={(p) => {
-                    // Drop the one it replaces so trying a few presets doesn't pile up profiles.
-                    if (replaced && replaced.id !== p.id)
-                      void deleteStyleProfile(replaced.id).catch(() => {});
-                    setReplaced(null);
-                    setProfile(p);
-                    setStyleName(p.style_name);
-                    setAttrs(p.attributes);
-                  }}
-                />
-              </>
-            ) : (
-              <div className="flex flex-col gap-3 rounded-[14px] border border-line bg-surface p-5">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold">
-                    정리된 추구미를 확인하고 고쳐 주세요
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setReplaced(profile);
-                      setProfile(null);
-                      setAttrs(null);
-                    }}
-                  >
-                    다른 추구미 고르기
-                  </Button>
-                </div>
-                <StyleAttributesEditor
-                  name={styleName}
-                  onNameChange={setStyleName}
-                  value={attrs}
-                  onChange={setAttrs}
-                />
-              </div>
-            )}
-          </section>
-        )}
+        {step === S.style &&
+          (styleLoaded ? (
+            <>
+              {page === 0 && (
+                <p className="rounded-[12px] bg-accent-soft px-4 py-3 text-[13.5px] text-accent">
+                  추구미는 &lsquo;이렇게 입고 싶다&rsquo;는 내 기준이에요. 여기서 고른 핏·스타일·색이 대표 추구미가 되고, 코디를 고를 때 이 기준을 따라요. 내 프로필에서 다른 추구미를 더 만들고 바꿀 수 있어요.
+                </p>
+              )}
+              <StylePage page={STYLE_PAGES[page]} draft={style} onChange={setStyle} person={person} step={counter(STYLE_PAGES.length)} />
+            </>
+          ) : (
+            <LoadingState />
+          ))}
 
         {step === S.closet && (
           <section className="flex flex-col gap-5">
@@ -634,119 +353,5 @@ function Wizard({ me }: { me: User }) {
         </div>
       </footer>
     </div>
-  );
-}
-
-function Heading({
-  title,
-  sub,
-  badge,
-  step,
-}: {
-  title: string;
-  sub?: string;
-  badge?: string;
-  step?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      {badge && (
-        <span className="self-start rounded bg-tile px-1.5 py-px text-[11px] font-semibold text-muted">
-          {badge}
-        </span>
-      )}
-      {step && (
-        <span className="font-mono text-[13px] font-semibold text-accent">
-          {step}
-        </span>
-      )}
-      <h1 className="text-[24px] font-bold">{title}</h1>
-      {sub && <p className="text-[14px] text-muted">{sub}</p>}
-    </div>
-  );
-}
-
-/** A big picture card. `avoid` cards mark what the user does NOT want (red ✕ instead of ✓). */
-function Tile({
-  on,
-  onClick,
-  label,
-  desc,
-  avoid,
-  disabled,
-  media,
-  children,
-}: {
-  on: boolean;
-  onClick: () => void;
-  label: string;
-  desc?: string;
-  avoid?: boolean;
-  disabled?: boolean;
-  /** Full-bleed picture at the top of the card (photos); `children` is a centered icon instead. */
-  media?: React.ReactNode;
-  children?: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      disabled={disabled}
-      onClick={onClick}
-      className={cx(
-        "relative flex flex-col items-center gap-1.5 overflow-hidden rounded-[16px] border-2 bg-surface text-center transition-colors",
-        media ? "pb-4" : "p-3 pb-4",
-        "focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45",
-        on
-          ? avoid
-            ? "border-danger bg-danger-soft"
-            : "border-accent bg-accent-soft"
-          : "border-line hover:border-line-strong",
-      )}
-    >
-      {on && (
-        <span
-          aria-hidden
-          className={cx(
-            "absolute right-2 top-2 z-10 grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold shadow",
-            avoid ? "bg-danger text-white" : "bg-accent text-accent-ink",
-          )}
-        >
-          {avoid ? "✕" : "✓"}
-        </span>
-      )}
-      {media && <div className="mb-1.5 w-full">{media}</div>}
-      {children}
-      <span
-        className={cx(
-          "px-2 text-[15px] font-semibold",
-          on && avoid && "text-danger",
-        )}
-      >
-        {label}
-      </span>
-      {desc && (
-        <span className="px-2 text-[12.5px] leading-snug text-muted">
-          {desc}
-        </span>
-      )}
-    </button>
-  );
-}
-
-/** `crop`: head to knees, so the top's fit (shoulders, width, length) reads larger. */
-function Look({ src, crop }: { src: string; crop?: boolean }) {
-  return (
-    <Image
-      src={src}
-      alt=""
-      width={600}
-      height={800}
-      sizes="(min-width: 1024px) 240px, 45vw"
-      className={cx(
-        "w-full bg-tile object-cover",
-        crop ? "aspect-square object-[50%_6%]" : "aspect-[3/4]",
-      )}
-    />
   );
 }

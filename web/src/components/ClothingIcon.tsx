@@ -1,6 +1,6 @@
 import { categoryOf, colorHex } from "@/lib/taxonomy";
 
-// Simple line drawings used for preset cards, onboarding tiles and as photo placeholders.
+// Simple line drawings used for the "입지 않는 옷" tiles and as photo placeholders.
 // Every shape sits in a 100×100 box. DETAILS add the few strokes that tell look-alike kinds apart
 // (a coat's length, a puffer's quilting, a denim's pockets).
 export const SHAPES: Record<string, string> = {

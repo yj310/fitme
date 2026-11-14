@@ -10,7 +10,7 @@ pnpm dev                     # http://localhost:3000
 ```
 
 - 검사: `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm check:taxonomy`
-- 태그 체계를 바꾸면 `api/app/domain/*.json` 수정 후 `pnpm sync:taxonomy` (웹 사본 `src/lib/taxonomy.json`, `style_presets.json` 갱신)
+- 태그 체계를 바꾸면 `api/app/domain/*.json` 수정 후 `pnpm sync:taxonomy` (웹 사본 `src/lib/taxonomy.json` 갱신)
 
 ## 구조
 

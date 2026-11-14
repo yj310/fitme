@@ -54,7 +54,7 @@ cd web && pnpm install && pnpm dev
 
 ### Supabase (개발·운영 프로젝트 각각)
 1. supabase.com → New project → Region **Northeast Asia (Seoul)**.
-2. SQL Editor에서 `supabase/migrations/*.sql`을 파일 이름 순서대로 실행 (테이블, RLS, 비공개 `closet` 버킷, 스토리지 정책, `users.gender`). 새 마이그레이션이 생기면 개발·운영 프로젝트 둘 다에 실행한다.
+2. SQL Editor에서 `supabase/migrations/*.sql`을 파일 이름 순서대로 실행 (테이블, RLS, 비공개 `closet` 버킷, 스토리지 정책, `users.gender`, 취향을 추구미로 옮기기). 새 마이그레이션이 생기면 개발·운영 프로젝트 둘 다에 실행한다.
 3. Project Settings → API에서 URL, anon(publishable) 키, service_role(secret) 키를 `.env`에 넣는다.
    - JWT는 JWKS로 자동 검증한다. 옛 HS256 프로젝트만 `SUPABASE_JWT_SECRET`을 넣는다.
 4. Authentication → URL Configuration: Site URL과 Redirect URL에 `http://localhost:3000/auth/callback`(개발) / 운영 도메인을 추가.

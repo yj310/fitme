@@ -63,7 +63,7 @@ class Harness:
     async def seed(self, uid=USER_A, wardrobe=WARDROBE, grid=(59, 127)):
         store = MemoryStore(uid, self.mdb)
         await store.ensure_user("테스터", None)
-        await store.update_user({"grid_nx": grid[0], "grid_ny": grid[1], "preferred_fit": "semi_over"})
+        await store.update_user({"grid_nx": grid[0], "grid_ny": grid[1]})
         for w in wardrobe:
             await store.insert_item(dict(w))
         return store

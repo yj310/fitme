@@ -101,7 +101,7 @@ def test_color_harmony():
 def test_score_weights_and_detail():
     sc = rules.ScoreContext(
         style_tags={"minimal"}, preferred_colors={"ivory", "navy"}, request_formality=2, temp=14, wind=1,
-        rainy=False, preferred_fit="regular", silhouette_top={"regular"}, silhouette_bottom={"straight"},
+        rainy=False, silhouette_top={"regular"}, silhouette_bottom={"straight"},
     )
     items = [WARDROBE[4], it("t1", "top", "knit", "ivory", styles=["minimal"]), WARDROBE[3], WARDROBE[5]]
     total, detail = rules.score_outfit(items, sc, {"style": 0.35, "harmony": 0.25, "situation": 0.2, "preference": 0.2})
@@ -112,7 +112,7 @@ def test_score_weights_and_detail():
 
 def test_reroll_penalty():
     base = dict(style_tags=set(), preferred_colors=set(), request_formality=None, temp=None, wind=None,
-                rainy=False, preferred_fit=None, silhouette_top=set(), silhouette_bottom=set())
+                rainy=False, silhouette_top=set(), silhouette_bottom=set())
     items = [WARDROBE[0], WARDROBE[3], WARDROBE[5]]
     plain = rules._preference_score(items, rules.ScoreContext(**base))
     penalized = rules._preference_score(items, rules.ScoreContext(**base, rerolled_pairs={frozenset({"t1", "b2"})}))
@@ -157,7 +157,7 @@ def test_counter_import_used():
 
 def test_weather_mismatch_costs_points():
     base = dict(style_tags=set(), preferred_colors=set(), request_formality=None, wind=1, rainy=False,
-                preferred_fit=None, silhouette_top=set(), silhouette_bottom=set())
+                silhouette_top=set(), silhouette_bottom=set())
     thin = [it("o", "outer", "jumper", "khaki", warmth=2), it("t", "top", "shirt", "white", warmth=1),
             it("b", "bottom", "slacks", "black")]
     warm = [it("o2", "outer", "coat", "beige", warmth=3), it("t2", "top", "knit", "ivory", warmth=3),

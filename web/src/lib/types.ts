@@ -17,7 +17,7 @@ export interface Health {
   models: { chat: string; tagging: string; style: string } | null;
 }
 
-export type OnboardingStep = "fit" | "style" | "body" | "closet";
+export type OnboardingStep = "body" | "style" | "closet";
 
 export interface PersistentExclusion {
   id: string;
@@ -39,10 +39,6 @@ export interface User {
   id: string;
   nickname: string | null;
   avatar_url: string | null;
-  preferred_fit: string | null;
-  style_tags: string[];
-  avoid_colors: string[];
-  avoid_subcategories: string[];
   personal_color: string | null;
   home_region: string | null;
   region_code: string | null;
@@ -69,10 +65,6 @@ export type UserPatch = Partial<
   Pick<
     User,
     | "nickname"
-    | "preferred_fit"
-    | "style_tags"
-    | "avoid_colors"
-    | "avoid_subcategories"
     | "personal_color"
     | "gender"
     | "height_cm"
@@ -170,18 +162,11 @@ export interface StyleProfile {
   id: string;
   style_name: string;
   source_text: string | null;
-  preset_key: string | null;
   attributes: StyleAttributes;
   is_default: boolean;
   created_at: string;
 }
 
-export interface StylePreset {
-  key: string;
-  style_name: string;
-  icons: string[];
-  attributes: StyleAttributes;
-}
 
 export interface OutfitItem {
   id: string;

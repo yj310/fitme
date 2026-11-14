@@ -1,41 +1,41 @@
-"""/style-presets, /style-profiles — 추구미 (F04)."""
+"""/style-profiles — 추구미 (F04).
+
+A 추구미 holds everything about the look the user wants: fit (silhouette), style tags, liked and avoided
+colors, avoided items and mood. Onboarding makes the first one (the default); more can be added in 내 프로필.
+Free text is analysed by the LLM into the same attributes, which the user reviews before saving.
+"""
 
 from __future__ import annotations
 
-import json
-from functools import lru_cache
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, Response
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 from app.agent.llm_tasks import analyze_style, clean_attributes
 from app.deps import Ctx, get_ctx
-from app.errors import ApiError, not_found
+from app.domain import taxonomy as tx
+from app.errors import not_found
 
 router = APIRouter(tags=["style"])
-PRESETS_PATH = Path(__file__).resolve().parents[1] / "domain" / "style_presets.json"
-
-
-@lru_cache
-def presets() -> list[dict]:
-    return json.loads(PRESETS_PATH.read_text(encoding="utf-8"))["presets"]
 
 
 def profile_view(r: dict) -> dict:
-    return {k: r.get(k) for k in ("id", "style_name", "source_text", "preset_key", "attributes", "is_default",
-                                  "created_at")}
+    return {k: r.get(k) for k in ("id", "style_name", "source_text", "attributes", "is_default", "created_at")}
+
+
+def auto_name(attrs: dict) -> str:
+    """'미니멀 · 캐주얼' from the style tags when the user gave no name."""
+    return " · ".join(tx.STYLE_LABEL.get(t, t) for t in attrs.get("style_tags", [])) or "내 추구미"
 
 
 class CreateReq(BaseModel):
-    text: str | None = Field(None, max_length=300)
-    preset: str | None = None
+    style_name: str | None = Field(None, max_length=30)
+    attributes: dict
+    source_text: str | None = Field(None, max_length=300)
+    is_default: bool | None = None
 
-    @model_validator(mode="after")
-    def _one(self):
-        if not (self.text and self.text.strip()) and not self.preset:
-            raise ValueError("text or preset is required")
-        return self
+
+class AnalyzeReq(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
 
 
 class PatchReq(BaseModel):
@@ -44,32 +44,24 @@ class PatchReq(BaseModel):
     is_default: bool | None = None
 
 
-@router.get("/style-presets")
-async def list_presets():
-    return {"presets": presets()}
+@router.post("/style-profiles/analyze")
+async def analyze_profile(body: AnalyzeReq, ctx: Ctx = Depends(get_ctx)):
+    """Free text → attributes, not saved: the user checks them in the steps and saves with POST."""
+    name, attrs = await analyze_style(ctx.llm, body.text.strip())
+    return {"style_name": name, "attributes": attrs}
 
 
 @router.post("/style-profiles")
 async def create_profile(body: CreateReq, ctx: Ctx = Depends(get_ctx)):
     await ctx.store.ensure_user(ctx.user.nickname, ctx.user.avatar_url)
-    if body.preset:
-        p = next((p for p in presets() if p["key"] == body.preset), None)
-        if not p:
-            raise ApiError("INVALID_PRESET", "알 수 없는 추구미예요.", 400)
-        name, attrs, source, key = p["style_name"], clean_attributes(p["attributes"]), None, p["key"]
-    else:
-        text = body.text.strip()
-        # Same text as a preset name → use the preset, no LLM call (spec F04).
-        p = next((p for p in presets() if p["style_name"].replace(" ", "") == text.replace(" ", "")), None)
-        if p:
-            name, attrs, key = p["style_name"], clean_attributes(p["attributes"]), p["key"]
-        else:
-            name, attrs = await analyze_style(ctx.llm, text)
-            key = None
-        source = text
+    attrs = clean_attributes(body.attributes)
     existing = await ctx.store.list_styles()
-    row = await ctx.store.insert_style({"style_name": name, "source_text": source, "preset_key": key,
-                                        "attributes": attrs, "is_default": not existing})
+    default = not existing or bool(body.is_default)
+    if default and existing:
+        await ctx.store.clear_default_style()
+    row = await ctx.store.insert_style({"style_name": (body.style_name or "").strip() or auto_name(attrs),
+                                        "source_text": (body.source_text or "").strip() or None,
+                                        "attributes": attrs, "is_default": default})
     return profile_view(row)
 
 
