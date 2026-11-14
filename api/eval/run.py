@@ -121,6 +121,8 @@ async def run_outfits(args) -> dict:
                 row["ids_ok"] = row["ids_ok"] and all(i["id"] in owned for i in items2)
                 row["followup_sec"] = round(dt2, 1)
             rows.append(row)
+            if args.pace:
+                await asyncio.sleep(args.pace)
             print(f"  #{req['id']:>2} outfits={row['n']} ids_ok={row['ids_ok']} rules_fill={row['rules_fill']} "
                   f"retries={row['retries']} forbidden={row['forbidden_hits']} {row['sec']}s")
     return summarize(rows, args)
@@ -211,6 +213,7 @@ def main() -> None:
     ap.add_argument("--llm", choices=["offline", "live"], default="offline")
     ap.add_argument("--tagging", action="store_true")
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--pace", type=float, default=0, help="seconds between requests (free-tier rate limits)")
     ap.add_argument("--parse", action="store_true", help="only the request-understanding set (needs --llm live)")
     args = ap.parse_args()
     os.environ["APP_ENV"] = args.env

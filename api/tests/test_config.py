@@ -6,7 +6,7 @@ from app.config import CONFIG_DIR, ConfigError, ModelConfig, load_model_config
 
 def test_both_configs_load():
     assert load_model_config("development").default_for("chat")[0] == "nvidia"
-    assert load_model_config("production").default_for("chat") == ("gemini", "gemini-3.8-flash")
+    assert load_model_config("production").default_for("chat") == ("gemini", "gemini-3.5-flash-lite")
 
 
 def test_production_refuses_nvidia():

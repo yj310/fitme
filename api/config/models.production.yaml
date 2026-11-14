@@ -1,10 +1,12 @@
 # Production mode models (spec 10.2). The server refuses to start if "nvidia" appears here.
+# Free default is flash-lite: on 2026-11-14 gemini-3.8-flash failed 5/5 (timeout, 503), lite answered 5/5 in <1s.
+# gemini-3.8-flash stays selectable with the user's own Gemini key.
 allowed_providers: [gemini, anthropic, openai]
 defaults:
-  chat:    { provider: gemini, model: gemini-3.8-flash }
+  chat:    { provider: gemini, model: gemini-3.5-flash-lite }
   tagging: { provider: gemini, model: gemini-3.5-flash-lite }
-  style:   { provider: gemini, model: gemini-3.8-flash }
+  style:   { provider: gemini, model: gemini-3.5-flash-lite }
 byok_choices:
-  gemini:    { chat: [gemini-3.8-flash], tagging: [gemini-3.5-flash-lite, gemini-3.8-flash], style: [gemini-3.8-flash] }
+  gemini:    { chat: [gemini-3.5-flash-lite, gemini-3.8-flash], tagging: [gemini-3.5-flash-lite, gemini-3.8-flash], style: [gemini-3.5-flash-lite, gemini-3.8-flash] }
   anthropic: { chat: [claude-sonnet-5-5], tagging: [claude-haiku-5-5], style: [claude-sonnet-5-5] }
   openai:    { chat: [gpt-5.5], tagging: [gpt-5.5-mini], style: [gpt-5.5] }
