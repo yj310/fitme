@@ -10,18 +10,30 @@ import { ItemThumb } from "@/components/ItemThumb";
 import { onboardingDone, useAuth } from "@/components/providers/AuthProvider";
 import { BodyFigure, BodyForm, bodyDraftFrom, bodyPatch, type BodyDraft } from "@/components/profile/BodyForm";
 import { StyleAttributesEditor, StyleCreator } from "@/components/profile/StyleEditor";
-import { Banner, Button, Chip, LoadingState, toggleIn } from "@/components/ui";
+import { ClothingIcon, TYPICAL_COLOR } from "@/components/ClothingIcon";
+import { FitArt, STYLE_WORDS, StyleArt } from "@/components/onboarding/Art";
+import { Banner, Button, LoadingState, toggleIn } from "@/components/ui";
 import { errorMessage, listStyleProfiles, patchMe, patchStyleProfile } from "@/lib/api";
 import { cx } from "@/lib/format";
-import { ALL_SUBCATEGORIES, COLORS, STYLE_TAGS, TOP_FITS, label } from "@/lib/taxonomy";
+import { CATEGORIES, COLORS, STYLE_TAGS, SUBCATEGORIES, TOP_FITS } from "@/lib/taxonomy";
 import type { Item, OnboardingStep, StyleAttributes, StyleProfile, User } from "@/lib/types";
 
 const STEPS: { key: OnboardingStep; label: string }[] = [
-  { key: "fit", label: "선호 핏" },
+  { key: "fit", label: "취향" },
   { key: "style", label: "추구미" },
   { key: "body", label: "신체 치수" },
   { key: "closet", label: "옷 등록" },
 ];
+
+// Step 1 ("취향") is four short pages, one question each.
+const PREF_PAGES = ["fit", "style", "colors", "items"] as const;
+
+const FIT_WORDS: Record<string, string> = {
+  slim: "몸에 딱 맞게",
+  regular: "적당히 여유 있게",
+  semi_over: "살짝 넉넉하게",
+  over: "크고 루즈하게",
+};
 
 function firstOpenStep(me: User): number {
   const done = me.onboarding_state?.steps ?? {};
@@ -52,6 +64,7 @@ function Wizard({ me }: { me: User }) {
   const { setMe } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(() => firstOpenStep(me));
+  const [pref, setPref] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -109,21 +122,22 @@ function Wizard({ me }: { me: User }) {
 
   const next = () => {
     if (step === 0) {
-      if (!fit || styleTags.length === 0) {
-        setError("선호 핏과 스타일을 하나 이상 골라 주세요.");
-        return;
-      }
-      void save(
-        () =>
-          patchMe({
-            preferred_fit: fit,
-            style_tags: styleTags,
-            avoid_colors: avoidColors,
-            avoid_subcategories: avoidSubs,
-            onboarding_step: { step: "fit", status: "done" },
-          }),
-        1,
-      );
+      const page = PREF_PAGES[pref];
+      if (page === "fit" && !fit) return setError("가장 좋아하는 핏을 하나 골라 주세요.");
+      if (page === "style" && styleTags.length === 0) return setError("끌리는 스타일을 하나 이상 골라 주세요.");
+      const patch =
+        page === "fit"
+          ? { preferred_fit: fit }
+          : page === "style"
+            ? { style_tags: styleTags }
+            : page === "colors"
+              ? { avoid_colors: avoidColors }
+              : { avoid_subcategories: avoidSubs, onboarding_step: { step: "fit" as const, status: "done" as const } };
+      void save(async () => {
+        const u = await patchMe(patch);
+        if (pref < PREF_PAGES.length - 1) setPref(pref + 1);
+        return u;
+      }, pref === PREF_PAGES.length - 1 ? 1 : undefined);
     } else if (step === 1) {
       if (!profile || !attrs) {
         setError("추구미를 하나 골라 주세요.");
@@ -148,14 +162,26 @@ function Wizard({ me }: { me: User }) {
       return u;
     });
 
+  const back = () => {
+    setError(null);
+    if (step === 0) setPref((p) => Math.max(0, p - 1));
+    else if (step === 1) {
+      setStep(0);
+      setPref(PREF_PAGES.length - 1);
+    } else setStep((s) => s - 1);
+  };
+
+  const optionalEmpty =
+    step === 0 && ((PREF_PAGES[pref] === "colors" && !avoidColors.length) || (PREF_PAGES[pref] === "items" && !avoidSubs.length));
+
   const skipBody = () => void save(() => patchMe({ onboarding_step: { step: "body", status: "skipped" } }), 3);
 
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <DevBand />
-      <header className="flex items-center justify-between border-b border-line bg-surface px-8 py-3">
+      <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-8">
         <Logo />
-        <ol className="flex items-center gap-2 text-[13px]" aria-label="온보딩 단계">
+        <ol className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:gap-2" aria-label="온보딩 단계">
           {STEPS.map((s, i) => (
             <li key={s.key} className="flex items-center gap-2">
               <span
@@ -166,48 +192,82 @@ function Wizard({ me }: { me: User }) {
                 )}
               >
                 <span className="font-mono text-xs">{i < step ? "✓" : i + 1}</span>
-                {s.label}
+                {/* phones: only the current step keeps its name */}
+                <span className={cx(i !== step && "hidden sm:inline")}>{s.label}</span>
               </span>
-              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-4 bg-line-strong" />}
+              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-2 bg-line-strong sm:w-4" />}
             </li>
           ))}
         </ol>
-        <span className="w-16" />
+        <span className="hidden w-16 sm:block" />
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col gap-5 px-8 py-8">
-        {step === 0 && (
-          <section className="flex flex-col gap-5">
-            <Heading title="어떤 핏과 스타일을 좋아하세요?" sub="코디를 고를 때 가장 먼저 참고해요." />
-            <Group title="선호 핏" required>
+      <main className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col gap-5 px-4 py-6 sm:px-8 sm:py-8">
+        {step === 0 && PREF_PAGES[pref] === "fit" && (
+          <section className="flex flex-col gap-6">
+            <Heading step={`${pref + 1} / ${PREF_PAGES.length}`} title="어떤 핏을 가장 좋아하세요?" sub="점선이 내 몸이에요. 옷과 몸 사이 여유를 보고 골라 주세요." />
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {TOP_FITS.map((f) => (
-                <Chip key={f.code} on={fit === f.code} onClick={() => setFit(f.code)}>
-                  {f.label}
-                </Chip>
+                <Tile key={f.code} on={fit === f.code} onClick={() => setFit(f.code)} label={f.label} desc={FIT_WORDS[f.code]}>
+                  <FitArt fit={f.code} className="h-44 w-full" />
+                </Tile>
               ))}
-            </Group>
-            <Group title="스타일 (최대 3개)" required>
-              {STYLE_TAGS.map((s) => (
-                <Chip key={s.code} on={styleTags.includes(s.code)} onClick={() => setStyleTags((v) => toggleIn(v, s.code, 3))}>
-                  {s.label}
-                </Chip>
+            </div>
+          </section>
+        )}
+
+        {step === 0 && PREF_PAGES[pref] === "style" && (
+          <section className="flex flex-col gap-6">
+            <Heading
+              step={`${pref + 1} / ${PREF_PAGES.length}`}
+              title="끌리는 스타일을 골라 주세요"
+              sub={`최대 3개까지 고를 수 있어요. ${styleTags.length ? `${styleTags.length}개 골랐어요.` : ""}`}
+            />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {STYLE_TAGS.map((t) => (
+                <Tile
+                  key={t.code}
+                  on={styleTags.includes(t.code)}
+                  disabled={!styleTags.includes(t.code) && styleTags.length >= 3}
+                  onClick={() => setStyleTags((v) => toggleIn(v, t.code, 3))}
+                  label={t.label}
+                  desc={STYLE_WORDS[t.code]}
+                >
+                  <StyleArt style={t.code} className="aspect-[4/3] w-full rounded-[10px] bg-tile" />
+                </Tile>
               ))}
-            </Group>
-            <Group title="피하는 색 (선택)">
+            </div>
+          </section>
+        )}
+
+        {step === 0 && PREF_PAGES[pref] === "colors" && (
+          <section className="flex flex-col gap-6">
+            <Heading step={`${pref + 1} / ${PREF_PAGES.length}`} title="입기 싫은 색이 있나요?" sub="고른 색은 코디에 넣지 않아요. 없으면 그냥 넘어가도 돼요." />
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
               {COLORS.map((c) => (
-                <Chip key={c.code} on={avoidColors.includes(c.code)} onClick={() => setAvoidColors((v) => toggleIn(v, c.code))}>
-                  <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full border border-line-strong" style={{ background: c.hex }} />
-                  {c.label}
-                </Chip>
+                <Tile key={c.code} avoid on={avoidColors.includes(c.code)} onClick={() => setAvoidColors((v) => toggleIn(v, c.code))} label={c.label}>
+                  <span aria-hidden className="my-2 block h-16 w-16 rounded-full border border-line-strong shadow-inner" style={{ background: c.hex }} />
+                </Tile>
               ))}
-            </Group>
-            <Group title="피하는 아이템 (선택)">
-              {ALL_SUBCATEGORIES.map((s) => (
-                <Chip key={s.code} on={avoidSubs.includes(s.code)} onClick={() => setAvoidSubs((v) => toggleIn(v, s.code))}>
-                  {label("subcategory", s.code)}
-                </Chip>
-              ))}
-            </Group>
+            </div>
+          </section>
+        )}
+
+        {step === 0 && PREF_PAGES[pref] === "items" && (
+          <section className="flex flex-col gap-6">
+            <Heading step={`${pref + 1} / ${PREF_PAGES.length}`} title="입지 않는 옷이 있나요?" sub="고른 옷은 추천에서 빼요. 없으면 그냥 넘어가도 돼요." />
+            {CATEGORIES.map((cat) => (
+              <div key={cat.code} className="flex flex-col gap-2">
+                <h2 className="text-[14px] font-semibold text-muted">{cat.label}</h2>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
+                  {SUBCATEGORIES[cat.code].map((sub) => (
+                    <Tile key={sub.code} avoid on={avoidSubs.includes(sub.code)} onClick={() => setAvoidSubs((v) => toggleIn(v, sub.code))} label={sub.label}>
+                      <ClothingIcon subcategory={sub.code} color={TYPICAL_COLOR[sub.code] ?? "white"} size={cat.code === "shoes" ? 84 : 64} />
+                    </Tile>
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
         )}
 
@@ -307,9 +367,9 @@ function Wizard({ me }: { me: User }) {
         {error && <Banner tone="danger">{error}</Banner>}
       </main>
 
-      <footer className="sticky bottom-0 border-t border-line bg-surface px-8 py-3">
+      <footer className="sticky bottom-0 border-t border-line bg-surface px-4 py-3 sm:px-8">
         <div className="mx-auto flex max-w-[1040px] items-center justify-between">
-          <Button variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || busy}>
+          <Button variant="ghost" onClick={back} disabled={(step === 0 && pref === 0) || busy}>
             이전
           </Button>
           <div className="flex items-center gap-2">
@@ -324,7 +384,7 @@ function Wizard({ me }: { me: User }) {
               </Button>
             )}
             <Button onClick={next} loading={busy} disabled={step === 3 && closetCount < 3}>
-              {step === 2 ? "다음 · 옷 3벌 등록하기" : step === 3 ? "완료하고 첫 코디 받기" : "다음"}
+              {step === 2 ? "다음 · 옷 3벌 등록하기" : step === 3 ? "완료하고 첫 코디 받기" : optionalEmpty ? "없어요, 다음" : "다음"}
             </Button>
           </div>
         </div>
@@ -333,23 +393,65 @@ function Wizard({ me }: { me: User }) {
   );
 }
 
-function Heading({ title, sub, badge }: { title: string; sub?: string; badge?: string }) {
+function Heading({ title, sub, badge, step }: { title: string; sub?: string; badge?: string; step?: string }) {
   return (
     <div className="flex flex-col gap-1">
       {badge && <span className="self-start rounded bg-tile px-1.5 py-px text-[11px] font-semibold text-muted">{badge}</span>}
-      <h1 className="text-[22px] font-bold">{title}</h1>
-      {sub && <p className="text-[13.5px] text-muted">{sub}</p>}
+      {step && <span className="font-mono text-[13px] font-semibold text-accent">{step}</span>}
+      <h1 className="text-[24px] font-bold">{title}</h1>
+      {sub && <p className="text-[14px] text-muted">{sub}</p>}
     </div>
   );
 }
 
-function Group({ title, required, children }: { title: string; required?: boolean; children: React.ReactNode }) {
+/** A big picture card. `avoid` cards mark what the user does NOT want (red ✕ instead of ✓). */
+function Tile({
+  on,
+  onClick,
+  label,
+  desc,
+  avoid,
+  disabled,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+  desc?: string;
+  avoid?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[13.5px] font-semibold">
-        {title} {required && <span className="text-xs font-normal text-accent">필수</span>}
-      </span>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
-    </div>
+    <button
+      type="button"
+      aria-pressed={on}
+      disabled={disabled}
+      onClick={onClick}
+      className={cx(
+        "relative flex flex-col items-center gap-1.5 rounded-[16px] border-2 bg-surface p-3 pb-4 text-center transition-colors",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-45",
+        on
+          ? avoid
+            ? "border-danger bg-danger-soft"
+            : "border-accent bg-accent-soft"
+          : "border-line hover:border-line-strong",
+      )}
+    >
+      {on && (
+        <span
+          aria-hidden
+          className={cx(
+            "absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full text-[13px] font-bold",
+            avoid ? "bg-danger text-white" : "bg-accent text-accent-ink",
+          )}
+        >
+          {avoid ? "✕" : "✓"}
+        </span>
+      )}
+      {children}
+      <span className={cx("text-[15px] font-semibold", on && avoid && "text-danger")}>{label}</span>
+      {desc && <span className="text-[12.5px] leading-snug text-muted">{desc}</span>}
+    </button>
   );
 }
