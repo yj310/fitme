@@ -21,6 +21,9 @@ class AuthUser:
     avatar_url: str | None
 
 
+CLOCK_SKEW_SECONDS = 30
+
+
 @lru_cache
 def _jwks_client(url: str) -> jwt.PyJWKClient:
     return jwt.PyJWKClient(f"{url.rstrip('/')}/auth/v1/.well-known/jwks.json", cache_keys=True, lifespan=3600)
@@ -38,8 +41,10 @@ def _decode(token: str) -> dict:
         key = s.supabase_jwt_secret
     else:
         key = _jwks_client(s.supabase_url).get_signing_key_from_jwt(token).key
+    # leeway: Supabase's clock can run a second or two ahead of ours, so a token issued "now" looks
+    # issued in the future and the first request right after login fails. 30s is plenty and still short.
     return jwt.decode(token, key, algorithms=["HS256", "RS256", "ES256"], audience="authenticated",
-                      issuer=issuer, options=opts)
+                      issuer=issuer, options=opts, leeway=CLOCK_SKEW_SECONDS)
 
 
 async def verify_token(token: str) -> dict:
