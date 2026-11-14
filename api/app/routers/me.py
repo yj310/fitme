@@ -43,6 +43,7 @@ class MePatch(BaseModel):
     avoid_subcategories: list[str] | None = None
     personal_color: str | None = None
     region_code: str | None = None
+    gender: Literal["female", "male"] | None = None
     height_cm: int | None = Field(None, ge=100, le=230)
     usual_sizes: UsualSizes | None = None
     body_traits: list[str] | None = None
@@ -109,8 +110,8 @@ async def user_view(ctx: Ctx, row: dict | None = None) -> dict:
     item_ids = [f["target"] for f in persistent if f["feedback_type"] == "exclude_item" and f.get("target")]
     items = {i["id"]: i for i in await ctx.store.get_items(item_ids)} if item_ids else {}
     keys = ("id", "nickname", "avatar_url", "preferred_fit", "style_tags", "avoid_colors", "avoid_subcategories",
-            "personal_color", "home_region", "region_code", "grid_nx", "grid_ny", "height_cm", "usual_sizes",
-            "body_traits", "body_measurements", "onboarding_state", "created_at")
+            "personal_color", "home_region", "region_code", "grid_nx", "grid_ny", "gender", "height_cm",
+            "usual_sizes", "body_traits", "body_measurements", "onboarding_state", "created_at")
     out = {k: row.get(k) for k in keys}
     out["usual_sizes"] = out["usual_sizes"] or {}
     out["onboarding_state"] = out["onboarding_state"] or {}

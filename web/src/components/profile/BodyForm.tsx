@@ -2,10 +2,11 @@
 
 import { cx } from "@/lib/format";
 import { BODY_TRAITS, TOP_SIZES } from "@/lib/taxonomy";
-import type { BodyMeasurements, User } from "@/lib/types";
+import type { BodyMeasurements, Gender, User } from "@/lib/types";
 import { Badge, Chip, inputCls, toggleIn } from "../ui";
 
 export interface BodyDraft {
+  gender: "" | Gender;
   height_cm: string;
   top: "" | "S" | "M" | "L" | "XL";
   bottom_waist: string;
@@ -20,6 +21,7 @@ export function bodyDraftFrom(me: User | null): BodyDraft {
   const m = me?.body_measurements ?? {};
   const s = (v: number | null | undefined) => (v === null || v === undefined ? "" : String(v));
   return {
+    gender: me?.gender ?? "",
     height_cm: s(me?.height_cm),
     top: me?.usual_sizes?.top ?? "",
     bottom_waist: s(me?.usual_sizes?.bottom_waist),
@@ -50,6 +52,7 @@ export function bodyPatch(d: BodyDraft) {
   const waist = num(d.bottom_waist);
   if (waist) sizes.bottom_waist = waist;
   return {
+    ...(d.gender ? { gender: d.gender } : {}),
     height_cm: num(d.height_cm),
     usual_sizes: sizes,
     body_traits: d.body_traits,
@@ -92,15 +95,41 @@ function NumField({
   );
 }
 
-export function BodyForm({ value, onChange }: { value: BodyDraft; onChange: (d: BodyDraft) => void }) {
+export const GENDERS: { code: Gender; label: string }[] = [
+  { code: "female", label: "여성" },
+  { code: "male", label: "남성" },
+];
+
+/** Onboarding asks gender on its own page first, so it hides the field here (`gender={false}`). */
+export function BodyForm({
+  value,
+  onChange,
+  gender = true,
+}: {
+  value: BodyDraft;
+  onChange: (d: BodyDraft) => void;
+  gender?: boolean;
+}) {
   const set = (patch: Partial<BodyDraft>) => onChange({ ...value, ...patch });
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid gap-3 sm:grid-cols-2">
       <div className="flex flex-col gap-2.5 rounded-[12px] border border-line bg-surface p-4">
         <div className="flex items-center justify-between">
           <h3 className="text-[13.5px] font-semibold">기본</h3>
           <span className="text-xs text-muted">30초</span>
         </div>
+        {gender && (
+          <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-2 text-[13px]">
+            <span className="text-muted">성별</span>
+            <div className="flex gap-1" role="group" aria-label="성별">
+              {GENDERS.map((g) => (
+                <Chip key={g.code} on={value.gender === g.code} onClick={() => set({ gender: g.code })}>
+                  {g.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+        )}
         <NumField label="키" value={value.height_cm} onChange={(v) => set({ height_cm: v })} min={100} max={230} />
         <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-2 text-[13px]">
           <span className="text-muted">평소 상의</span>

@@ -466,7 +466,9 @@ function BodyEditBody({ me, setMe, onDone }: { me: User; setMe: (u: User) => voi
       <div className="flex justify-between">
         <Button
           variant="subtle"
-          onClick={() => setDraft({ height_cm: "", top: "", bottom_waist: "", body_traits: [], shoulder: "", chest: "", waist: "", hip: "" })}
+          onClick={() =>
+            setDraft({ gender: draft.gender, height_cm: "", top: "", bottom_waist: "", body_traits: [], shoulder: "", chest: "", waist: "", hip: "" })
+          }
         >
           모두 지우기
         </Button>

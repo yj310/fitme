@@ -74,7 +74,8 @@ These are real clothing photos used as seed wardrobe data (`supabase/seed/images
 
 ## Onboarding lookbook (`web/public/onboarding/`)
 
-`fit-*.webp` (4) and `style-*.webp` (10) were generated for FITME on 2026-11-14 with Figma AI image
-generation (`gpt-image-2.5-flare`) in the project's own Figma file "FITME 온보딩 일러스트". They show no real
-person or brand. Resized to 600×800 WebP. The fit images share one prompt (same person, same white
-long-sleeve top and jeans) with only the fit changed; each style image prompt names that style's typical pieces.
+Generated for FITME on 2026-11-14 with Figma AI image generation (`gpt-image-2.5-flare`) in the project's own
+Figma file "FITME 온보딩 일러스트". They show no real person or brand. Resized to 600×800 WebP (36 files, ~460KB).
+- `fit-{female|male}-{tall|short}-{fit}.webp` (16): one prompt per gender and height, same white long-sleeve top
+  and jeans, only the fit changes.
+- `style-{female|male}-{style}.webp` (20): each prompt names that style's typical pieces.

@@ -48,6 +48,7 @@ export interface User {
   region_code: string | null;
   grid_nx: number | null;
   grid_ny: number | null;
+  gender: Gender | null;
   height_cm: number | null;
   usual_sizes: { top?: "S" | "M" | "L" | "XL"; bottom_waist?: number };
   body_traits: string[];
@@ -62,6 +63,8 @@ export interface User {
   created_at: string;
 }
 
+export type Gender = "female" | "male";
+
 export type UserPatch = Partial<
   Pick<
     User,
@@ -71,6 +74,7 @@ export type UserPatch = Partial<
     | "avoid_colors"
     | "avoid_subcategories"
     | "personal_color"
+    | "gender"
     | "height_cm"
     | "usual_sizes"
     | "body_traits"

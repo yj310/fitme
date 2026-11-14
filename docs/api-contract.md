@@ -111,6 +111,7 @@ interface User {
   avoid_colors: string[]; avoid_subcategories: string[];
   personal_color: string | null;
   home_region: string | null; region_code: string | null; grid_nx: number | null; grid_ny: number | null;
+  gender: "female" | "male" | null;   // 온보딩 첫 단계. 핏·스타일 사진 고르는 데만 쓰고 AI에 보내지 않음
   height_cm: number | null;
   usual_sizes: { top?: "S"|"M"|"L"|"XL"; bottom_waist?: number };
   body_traits: string[];

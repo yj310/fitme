@@ -360,3 +360,11 @@ def test_small_talk_replies(h):
     run(h.seed())
     assert events_of(h.chat("안녕"), "message")[0]["delta"].startswith("안녕하세요!")
     assert events_of(h.chat("고마워"), "message")[0]["delta"].startswith("천만에요!")
+
+
+def test_gender_saved_and_validated(h):
+    run(h.seed())
+    r = h.client.patch("/api/v1/me", json={"gender": "female", "height_cm": 158})
+    assert r.status_code == 200 and r.json()["gender"] == "female" and r.json()["height_cm"] == 158
+    assert h.client.patch("/api/v1/me", json={"gender": "other"}).status_code == 422
+    assert h.client.get("/api/v1/me").json()["gender"] == "female"
