@@ -13,7 +13,7 @@ import { getSupabase } from "@/lib/supabase";
  */
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const { status, me } = useAuth();
+  const { status, me, meError, refreshMe } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,9 +41,13 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="grid min-h-screen place-items-center px-4">
-      {error ? (
+      {error || (status === "signed_in" && !me && meError) ? (
         <div className="flex flex-col items-center gap-3">
-          <ErrorState message={error} />
+          {/* Signed in with Kakao but the API didn't answer (asleep, CORS, outage): say so, don't spin forever. */}
+          <ErrorState
+            message={error ?? meError ?? ""}
+            onRetry={!error ? () => void refreshMe() : undefined}
+          />
           <Link href="/welcome" className="text-accent underline">
             로그인 화면으로
           </Link>
