@@ -62,7 +62,10 @@ cd web && pnpm install && pnpm dev
 ### 카카오 로그인
 1. Kakao Developers → 애플리케이션 추가 → REST API 키, 보안 → Client Secret 발급.
 2. 카카오 로그인 활성화, Redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
-3. 동의항목: **닉네임(profile_nickname), 프로필 사진(profile_image)만**. 이메일은 설정하지 않는다 (KOE205 방지).
+3. 동의항목: **닉네임(profile_nickname), 프로필 사진(profile_image)** + **카카오계정(이메일)은 "선택 동의"**.
+   - Supabase는 웹이 보낸 scope와 상관없이 `account_email`을 항상 함께 요청한다. 이메일 동의항목이 없으면 KOE205가 난다.
+   - 이메일 항목은 비즈 앱에서만 열린다: 앱 설정 → 비즈니스 정보 → **개인 개발자 비즈 앱 전환**(무료) 후 동의항목에서 선택 동의로 설정.
+   - 앱은 이메일을 읽거나 저장하지 않는다 (`public.users`에 없음). 동의한 사용자의 이메일은 Supabase 로그인 정보(`auth.users`)에만 남는다.
 4. Supabase → Authentication → Providers → Kakao: REST API 키, Client Secret 입력, **Allow users without an email** 켜기.
 5. 카카오 키는 Supabase 대시보드에만 넣고 코드·`.env`에는 넣지 않는다.
 
