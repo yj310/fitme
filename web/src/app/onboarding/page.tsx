@@ -9,14 +9,43 @@ import { MAX_FILES, useUploadQueue } from "@/components/closet/useUploadQueue";
 import { DevBand } from "@/components/DevBand";
 import { ItemThumb } from "@/components/ItemThumb";
 import { onboardingDone, useAuth } from "@/components/providers/AuthProvider";
-import { BodyFigure, BodyForm, GENDERS, bodyDraftFrom, bodyPatch, type BodyDraft } from "@/components/profile/BodyForm";
-import { StyleAttributesEditor, StyleCreator } from "@/components/profile/StyleEditor";
+import {
+  BodyFigure,
+  BodyForm,
+  GENDERS,
+  bodyDraftFrom,
+  bodyPatch,
+  type BodyDraft,
+} from "@/components/profile/BodyForm";
+import {
+  StyleAttributesEditor,
+  StyleCreator,
+} from "@/components/profile/StyleEditor";
 import { ClothingIcon, TYPICAL_COLOR } from "@/components/ClothingIcon";
 import { Banner, Button, LoadingState, toggleIn } from "@/components/ui";
-import { errorMessage, listStyleProfiles, patchMe, patchStyleProfile } from "@/lib/api";
+import {
+  deleteStyleProfile,
+  errorMessage,
+  listStyleProfiles,
+  patchMe,
+  patchStyleProfile,
+} from "@/lib/api";
 import { cx } from "@/lib/format";
-import { CATEGORIES, COLORS, STYLE_TAGS, SUBCATEGORIES, TOP_FITS } from "@/lib/taxonomy";
-import type { Gender, Item, OnboardingStep, StyleAttributes, StyleProfile, User } from "@/lib/types";
+import {
+  CATEGORIES,
+  COLORS,
+  STYLE_TAGS,
+  SUBCATEGORIES,
+  TOP_FITS,
+} from "@/lib/taxonomy";
+import type {
+  Gender,
+  Item,
+  OnboardingStep,
+  StyleAttributes,
+  StyleProfile,
+  User,
+} from "@/lib/types";
 
 const STEPS: { key: OnboardingStep; label: string }[] = [
   { key: "body", label: "내 몸" },
@@ -29,7 +58,8 @@ const S = { body: 0, pref: 1, style: 2, closet: 3 } as const;
 // Steps with several short pages, one question each.
 const BODY_PAGES = ["gender", "size"] as const;
 const PREF_PAGES = ["fit", "style", "colors", "items"] as const;
-const pagesOf = (step: number) => (step === S.body ? BODY_PAGES.length : step === S.pref ? PREF_PAGES.length : 1);
+const pagesOf = (step: number) =>
+  step === S.body ? BODY_PAGES.length : step === S.pref ? PREF_PAGES.length : 1;
 
 // Lookbook images generated for FITME (Figma AI) in public/onboarding/, picked by gender and height.
 const STYLE_WORDS: Record<string, string> = {
@@ -55,7 +85,10 @@ const FIT_WORDS: Record<string, string> = {
 /** From this height (cm) the "tall" pictures are shown. Roughly the Korean average for each. */
 const TALL_FROM: Record<Gender, number> = { female: 163, male: 176 };
 
-function lookPerson(gender: Gender | "", height: string): { gender: Gender; tall: boolean } {
+function lookPerson(
+  gender: Gender | "",
+  height: string,
+): { gender: Gender; tall: boolean } {
   const g = gender || "female";
   const h = Number(height);
   return { gender: g, tall: !h || h >= TALL_FROM[g] };
@@ -106,19 +139,27 @@ function Wizard({ me }: { me: User }) {
   const [profile, setProfile] = useState<StyleProfile | null>(null);
   const [styleName, setStyleName] = useState("");
   const [attrs, setAttrs] = useState<StyleAttributes | null>(null);
+  // The profile the user set aside with "다른 추구미 고르기": it is replaced once a new one is made.
+  const [replaced, setReplaced] = useState<StyleProfile | null>(null);
   // 옷 등록
   const [saved, setSaved] = useState<Item[]>([]);
-  const onSaved = useCallback((item: Item) => setSaved((s) => [...s, item]), []);
+  const onSaved = useCallback(
+    (item: Item) => setSaved((s) => [...s, item]),
+    [],
+  );
   const queue = useUploadQueue(onSaved);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const person = lookPerson(body.gender, body.height_cm);
-  const fitSrc = (code: string) => `/onboarding/fit-${person.gender}-${person.tall ? "tall" : "short"}-${code}.webp`;
-  const styleSrc = (code: string) => `/onboarding/style-${person.gender}-${code}.webp`;
+  const fitSrc = (code: string) =>
+    `/onboarding/fit-${person.gender}-${person.tall ? "tall" : "short"}-${code}.webp`;
+  const styleSrc = (code: string) =>
+    `/onboarding/style-${person.gender}-${code}.webp`;
 
-  // Resume an existing default style profile when coming back to 추구미.
+  // Resume an existing default style profile when coming back to 추구미
+  // (not while the user is picking a different one, or it would pop right back).
   useEffect(() => {
-    if (step !== S.style || profile) return;
+    if (step !== S.style || profile || replaced) return;
     let alive = true;
     listStyleProfiles()
       .then((r) => {
@@ -133,7 +174,7 @@ function Wizard({ me }: { me: User }) {
     return () => {
       alive = false;
     };
-  }, [step, profile]);
+  }, [step, profile, replaced]);
 
   const closetCount = me.closet_count + saved.length;
 
@@ -163,13 +204,21 @@ function Wizard({ me }: { me: User }) {
         return void save(() => patchMe({ gender: body.gender || undefined }));
       }
       const h = Number(body.height_cm);
-      if (!h || h < 100 || h > 230) return setError("키를 cm로 적어 주세요. 나머지 칸은 비워도 돼요.");
-      return void save(() => patchMe({ ...bodyPatch(body), onboarding_step: { step: "body", status: "done" } }));
+      if (!h || h < 100 || h > 230)
+        return setError("키를 cm로 적어 주세요. 나머지 칸은 비워도 돼요.");
+      return void save(() =>
+        patchMe({
+          ...bodyPatch(body),
+          onboarding_step: { step: "body", status: "done" },
+        }),
+      );
     }
     if (step === S.pref) {
       const p = PREF_PAGES[page];
-      if (p === "fit" && !fit) return setError("가장 좋아하는 핏을 하나 골라 주세요.");
-      if (p === "style" && styleTags.length === 0) return setError("끌리는 스타일을 하나 이상 골라 주세요.");
+      if (p === "fit" && !fit)
+        return setError("가장 좋아하는 핏을 하나 골라 주세요.");
+      if (p === "style" && styleTags.length === 0)
+        return setError("끌리는 스타일을 하나 이상 골라 주세요.");
       const patch =
         p === "fit"
           ? { preferred_fit: fit }
@@ -177,13 +226,23 @@ function Wizard({ me }: { me: User }) {
             ? { style_tags: styleTags }
             : p === "colors"
               ? { avoid_colors: avoidColors }
-              : { avoid_subcategories: avoidSubs, onboarding_step: { step: "fit" as const, status: "done" as const } };
+              : {
+                  avoid_subcategories: avoidSubs,
+                  onboarding_step: {
+                    step: "fit" as const,
+                    status: "done" as const,
+                  },
+                };
       return void save(() => patchMe(patch));
     }
     if (step === S.style) {
       if (!profile || !attrs) return setError("추구미를 하나 골라 주세요.");
       return void save(async () => {
-        await patchStyleProfile(profile.id, { style_name: styleName.trim() || profile.style_name, attributes: attrs, is_default: true });
+        await patchStyleProfile(profile.id, {
+          style_name: styleName.trim() || profile.style_name,
+          attributes: attrs,
+          is_default: true,
+        });
         return patchMe({ onboarding_step: { step: "style", status: "done" } });
       });
     }
@@ -192,7 +251,10 @@ function Wizard({ me }: { me: User }) {
 
   const finish = (status: "done" | "skipped") =>
     save(async () => {
-      const u = await patchMe({ onboarding_step: { step: "closet", status }, complete_onboarding: true });
+      const u = await patchMe({
+        onboarding_step: { step: "closet", status },
+        complete_onboarding: true,
+      });
       setMe(u);
       router.replace("/chat");
       return u;
@@ -208,7 +270,9 @@ function Wizard({ me }: { me: User }) {
   };
 
   const optionalEmpty =
-    step === S.pref && ((PREF_PAGES[page] === "colors" && !avoidColors.length) || (PREF_PAGES[page] === "items" && !avoidSubs.length));
+    step === S.pref &&
+    ((PREF_PAGES[page] === "colors" && !avoidColors.length) ||
+      (PREF_PAGES[page] === "items" && !avoidSubs.length));
   const counter = (n: number) => `${page + 1} / ${n}`;
 
   return (
@@ -216,21 +280,34 @@ function Wizard({ me }: { me: User }) {
       <DevBand />
       <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3 sm:px-8">
         <Logo />
-        <ol className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:gap-2" aria-label="온보딩 단계">
+        <ol
+          className="flex items-center gap-1.5 whitespace-nowrap text-[13px] sm:gap-2"
+          aria-label="온보딩 단계"
+        >
           {STEPS.map((s, i) => (
             <li key={s.key} className="flex items-center gap-2">
               <span
                 aria-current={i === step ? "step" : undefined}
                 className={cx(
                   "flex items-center gap-1.5 rounded-full px-2.5 py-1",
-                  i === step ? "bg-accent text-accent-ink" : i < step ? "bg-accent-soft text-accent" : "text-muted",
+                  i === step
+                    ? "bg-accent text-accent-ink"
+                    : i < step
+                      ? "bg-accent-soft text-accent"
+                      : "text-muted",
                 )}
               >
-                <span className="font-mono text-xs">{i < step ? "✓" : i + 1}</span>
+                <span className="font-mono text-xs">
+                  {i < step ? "✓" : i + 1}
+                </span>
                 {/* phones: only the current step keeps its name */}
-                <span className={cx(i !== step && "hidden sm:inline")}>{s.label}</span>
+                <span className={cx(i !== step && "hidden sm:inline")}>
+                  {s.label}
+                </span>
               </span>
-              {i < STEPS.length - 1 && <span aria-hidden className="h-px w-2 bg-line-strong sm:w-4" />}
+              {i < STEPS.length - 1 && (
+                <span aria-hidden className="h-px w-2 bg-line-strong sm:w-4" />
+              )}
             </li>
           ))}
         </ol>
@@ -240,7 +317,11 @@ function Wizard({ me }: { me: User }) {
       <main className="mx-auto flex w-full max-w-[1040px] flex-1 flex-col gap-5 px-4 py-6 sm:px-8 sm:py-8">
         {step === S.body && BODY_PAGES[page] === "gender" && (
           <section className="flex flex-col gap-6">
-            <Heading step={counter(BODY_PAGES.length)} title="성별을 알려 주세요" sub="핏과 스타일 사진을 내 성별에 맞춰 보여 드려요. AI에는 보내지 않아요." />
+            <Heading
+              step={counter(BODY_PAGES.length)}
+              title="성별을 알려 주세요"
+              sub="핏과 스타일 사진을 내 성별에 맞춰 보여 드려요. AI에는 보내지 않아요."
+            />
             <div className="mx-auto grid w-full max-w-[560px] grid-cols-2 gap-4">
               {GENDERS.map((g) => (
                 <Tile
@@ -248,7 +329,9 @@ function Wizard({ me }: { me: User }) {
                   on={body.gender === g.code}
                   onClick={() => setBody({ ...body, gender: g.code })}
                   label={g.label}
-                  media={<Look src={`/onboarding/style-${g.code}-casual.webp`} />}
+                  media={
+                    <Look src={`/onboarding/style-${g.code}-casual.webp`} />
+                  }
                 />
               ))}
             </div>
@@ -264,7 +347,9 @@ function Wizard({ me }: { me: User }) {
             />
             <div className="grid gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
               <div className="hidden flex-col items-center gap-2 rounded-[14px] border border-line bg-surface p-4 md:flex">
-                <span className="text-[13px] font-semibold">줄자 재는 위치</span>
+                <span className="text-[13px] font-semibold">
+                  줄자 재는 위치
+                </span>
                 <BodyFigure />
               </div>
               <BodyForm value={body} onChange={setBody} gender={false} />
@@ -306,7 +391,9 @@ function Wizard({ me }: { me: User }) {
                 <Tile
                   key={t.code}
                   on={styleTags.includes(t.code)}
-                  disabled={!styleTags.includes(t.code) && styleTags.length >= 3}
+                  disabled={
+                    !styleTags.includes(t.code) && styleTags.length >= 3
+                  }
                   onClick={() => setStyleTags((v) => toggleIn(v, t.code, 3))}
                   label={t.label}
                   desc={STYLE_WORDS[t.code]}
@@ -319,11 +406,25 @@ function Wizard({ me }: { me: User }) {
 
         {step === S.pref && PREF_PAGES[page] === "colors" && (
           <section className="flex flex-col gap-6">
-            <Heading step={counter(PREF_PAGES.length)} title="입기 싫은 색이 있나요?" sub="고른 색은 코디에 넣지 않아요. 없으면 그냥 넘어가도 돼요." />
+            <Heading
+              step={counter(PREF_PAGES.length)}
+              title="입기 싫은 색이 있나요?"
+              sub="고른 색은 코디에 넣지 않아요. 없으면 그냥 넘어가도 돼요."
+            />
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
               {COLORS.map((c) => (
-                <Tile key={c.code} avoid on={avoidColors.includes(c.code)} onClick={() => setAvoidColors((v) => toggleIn(v, c.code))} label={c.label}>
-                  <span aria-hidden className="my-2 block h-16 w-16 rounded-full border border-line-strong shadow-inner" style={{ background: c.hex }} />
+                <Tile
+                  key={c.code}
+                  avoid
+                  on={avoidColors.includes(c.code)}
+                  onClick={() => setAvoidColors((v) => toggleIn(v, c.code))}
+                  label={c.label}
+                >
+                  <span
+                    aria-hidden
+                    className="my-2 block h-16 w-16 rounded-full border border-line-strong shadow-inner"
+                    style={{ background: c.hex }}
+                  />
                 </Tile>
               ))}
             </div>
@@ -332,14 +433,30 @@ function Wizard({ me }: { me: User }) {
 
         {step === S.pref && PREF_PAGES[page] === "items" && (
           <section className="flex flex-col gap-6">
-            <Heading step={counter(PREF_PAGES.length)} title="입지 않는 옷이 있나요?" sub="고른 옷은 추천에서 빼요. 없으면 그냥 넘어가도 돼요." />
+            <Heading
+              step={counter(PREF_PAGES.length)}
+              title="입지 않는 옷이 있나요?"
+              sub="고른 옷은 추천에서 빼요. 없으면 그냥 넘어가도 돼요."
+            />
             {CATEGORIES.map((cat) => (
               <div key={cat.code} className="flex flex-col gap-2">
-                <h2 className="text-[14px] font-semibold text-muted">{cat.label}</h2>
+                <h2 className="text-[14px] font-semibold text-muted">
+                  {cat.label}
+                </h2>
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-8">
                   {SUBCATEGORIES[cat.code].map((sub) => (
-                    <Tile key={sub.code} avoid on={avoidSubs.includes(sub.code)} onClick={() => setAvoidSubs((v) => toggleIn(v, sub.code))} label={sub.label}>
-                      <ClothingIcon subcategory={sub.code} color={TYPICAL_COLOR[sub.code] ?? "white"} size={cat.code === "shoes" ? 84 : 64} />
+                    <Tile
+                      key={sub.code}
+                      avoid
+                      on={avoidSubs.includes(sub.code)}
+                      onClick={() => setAvoidSubs((v) => toggleIn(v, sub.code))}
+                      label={sub.label}
+                    >
+                      <ClothingIcon
+                        subcategory={sub.code}
+                        color={TYPICAL_COLOR[sub.code] ?? "white"}
+                        size={cat.code === "shoes" ? 84 : 64}
+                      />
                     </Tile>
                   ))}
                 </div>
@@ -350,23 +467,56 @@ function Wizard({ me }: { me: User }) {
 
         {step === S.style && (
           <section className="flex flex-col gap-5">
-            <Heading title="되고 싶은 스타일, 추구미를 알려주세요" sub="고르거나 직접 적으면 색·실루엣·무드로 정리해 드려요. 나중에 바꿀 수 있어요." />
+            <Heading
+              title="되고 싶은 스타일, 추구미를 알려주세요"
+              sub="고르거나 직접 적으면 색·실루엣·무드로 정리해 드려요. 나중에 바꿀 수 있어요."
+            />
             {!profile || !attrs ? (
-              <StyleCreator
-                gender={body.gender || null}
-                onCreated={(p) => {
-                  setProfile(p);
-                  setStyleName(p.style_name);
-                  setAttrs(p.attributes);
-                }}
-              />
+              <>
+                {replaced && (
+                  <div className="flex items-center justify-between gap-3 rounded-[14px] border border-line bg-surface px-4 py-3 text-[13.5px]">
+                    <span className="text-muted">
+                      지금 추구미:{" "}
+                      <span className="font-semibold text-ink">
+                        {replaced.style_name}
+                      </span>
+                    </span>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setProfile(replaced);
+                        setStyleName(replaced.style_name);
+                        setAttrs(replaced.attributes);
+                        setReplaced(null);
+                      }}
+                    >
+                      그대로 쓰기
+                    </Button>
+                  </div>
+                )}
+                <StyleCreator
+                  gender={body.gender || null}
+                  onCreated={(p) => {
+                    // Drop the one it replaces so trying a few presets doesn't pile up profiles.
+                    if (replaced && replaced.id !== p.id)
+                      void deleteStyleProfile(replaced.id).catch(() => {});
+                    setReplaced(null);
+                    setProfile(p);
+                    setStyleName(p.style_name);
+                    setAttrs(p.attributes);
+                  }}
+                />
+              </>
             ) : (
               <div className="flex flex-col gap-3 rounded-[14px] border border-line bg-surface p-5">
                 <div className="flex items-center justify-between">
-                  <h2 className="font-semibold">정리된 추구미를 확인하고 고쳐 주세요</h2>
+                  <h2 className="font-semibold">
+                    정리된 추구미를 확인하고 고쳐 주세요
+                  </h2>
                   <Button
                     variant="ghost"
                     onClick={() => {
+                      setReplaced(profile);
                       setProfile(null);
                       setAttrs(null);
                     }}
@@ -374,7 +524,12 @@ function Wizard({ me }: { me: User }) {
                     다른 추구미 고르기
                   </Button>
                 </div>
-                <StyleAttributesEditor name={styleName} onNameChange={setStyleName} value={attrs} onChange={setAttrs} />
+                <StyleAttributesEditor
+                  name={styleName}
+                  onNameChange={setStyleName}
+                  value={attrs}
+                  onChange={setAttrs}
+                />
               </div>
             )}
           </section>
@@ -389,9 +544,17 @@ function Wizard({ me }: { me: User }) {
             <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_300px]">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
-                  <Button onClick={() => fileRef.current?.click()}>옷 사진 올리기</Button>
-                  <span className={cx("text-[13px]", closetCount >= 3 ? "text-good" : "text-muted")}>
-                    {closetCount >= 3 ? "✓ " : ""}등록한 옷 {closetCount}벌 / 3벌
+                  <Button onClick={() => fileRef.current?.click()}>
+                    옷 사진 올리기
+                  </Button>
+                  <span
+                    className={cx(
+                      "text-[13px]",
+                      closetCount >= 3 ? "text-good" : "text-muted",
+                    )}
+                  >
+                    {closetCount >= 3 ? "✓ " : ""}등록한 옷 {closetCount}벌 /
+                    3벌
                   </span>
                   <input
                     ref={fileRef}
@@ -400,7 +563,8 @@ function Wizard({ me }: { me: User }) {
                     multiple
                     hidden
                     onChange={(e) => {
-                      if (e.target.files?.length) queue.addFiles(e.target.files);
+                      if (e.target.files?.length)
+                        queue.addFiles(e.target.files);
                       e.target.value = "";
                     }}
                   />
@@ -408,8 +572,16 @@ function Wizard({ me }: { me: User }) {
                 {saved.length > 0 ? (
                   <ul className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {saved.map((i) => (
-                      <li key={i.id} className="flex flex-col gap-1 text-[11.5px]">
-                        <ItemThumb src={i.image_url} alt={i.name} subcategory={i.subcategory} color={i.color} />
+                      <li
+                        key={i.id}
+                        className="flex flex-col gap-1 text-[11.5px]"
+                      >
+                        <ItemThumb
+                          src={i.image_url}
+                          alt={i.name}
+                          subcategory={i.subcategory}
+                          color={i.color}
+                        />
                         <span className="truncate">{i.name}</span>
                       </li>
                     ))}
@@ -430,17 +602,33 @@ function Wizard({ me }: { me: User }) {
 
       <footer className="sticky bottom-0 border-t border-line bg-surface px-4 py-3 sm:px-8">
         <div className="mx-auto flex max-w-[1040px] items-center justify-between">
-          <Button variant="ghost" onClick={back} disabled={(step === 0 && page === 0) || busy}>
+          <Button
+            variant="ghost"
+            onClick={back}
+            disabled={(step === 0 && page === 0) || busy}
+          >
             이전
           </Button>
           <div className="flex items-center gap-2">
             {step === S.closet && closetCount < 3 && (
-              <Button variant="subtle" onClick={() => void finish("skipped")} disabled={busy}>
+              <Button
+                variant="subtle"
+                onClick={() => void finish("skipped")}
+                disabled={busy}
+              >
                 나중에 하기
               </Button>
             )}
-            <Button onClick={next} loading={busy} disabled={step === S.closet && closetCount < 3}>
-              {step === S.closet ? "완료하고 첫 코디 받기" : optionalEmpty ? "없어요, 다음" : "다음"}
+            <Button
+              onClick={next}
+              loading={busy}
+              disabled={step === S.closet && closetCount < 3}
+            >
+              {step === S.closet
+                ? "완료하고 첫 코디 받기"
+                : optionalEmpty
+                  ? "없어요, 다음"
+                  : "다음"}
             </Button>
           </div>
         </div>
@@ -449,11 +637,29 @@ function Wizard({ me }: { me: User }) {
   );
 }
 
-function Heading({ title, sub, badge, step }: { title: string; sub?: string; badge?: string; step?: string }) {
+function Heading({
+  title,
+  sub,
+  badge,
+  step,
+}: {
+  title: string;
+  sub?: string;
+  badge?: string;
+  step?: string;
+}) {
   return (
     <div className="flex flex-col gap-1">
-      {badge && <span className="self-start rounded bg-tile px-1.5 py-px text-[11px] font-semibold text-muted">{badge}</span>}
-      {step && <span className="font-mono text-[13px] font-semibold text-accent">{step}</span>}
+      {badge && (
+        <span className="self-start rounded bg-tile px-1.5 py-px text-[11px] font-semibold text-muted">
+          {badge}
+        </span>
+      )}
+      {step && (
+        <span className="font-mono text-[13px] font-semibold text-accent">
+          {step}
+        </span>
+      )}
       <h1 className="text-[24px] font-bold">{title}</h1>
       {sub && <p className="text-[14px] text-muted">{sub}</p>}
     </div>
@@ -511,8 +717,19 @@ function Tile({
       )}
       {media && <div className="mb-1.5 w-full">{media}</div>}
       {children}
-      <span className={cx("px-2 text-[15px] font-semibold", on && avoid && "text-danger")}>{label}</span>
-      {desc && <span className="px-2 text-[12.5px] leading-snug text-muted">{desc}</span>}
+      <span
+        className={cx(
+          "px-2 text-[15px] font-semibold",
+          on && avoid && "text-danger",
+        )}
+      >
+        {label}
+      </span>
+      {desc && (
+        <span className="px-2 text-[12.5px] leading-snug text-muted">
+          {desc}
+        </span>
+      )}
     </button>
   );
 }
@@ -526,7 +743,10 @@ function Look({ src, crop }: { src: string; crop?: boolean }) {
       width={600}
       height={800}
       sizes="(min-width: 1024px) 240px, 45vw"
-      className={cx("w-full bg-tile object-cover", crop ? "aspect-square object-[50%_6%]" : "aspect-[3/4]")}
+      className={cx(
+        "w-full bg-tile object-cover",
+        crop ? "aspect-square object-[50%_6%]" : "aspect-[3/4]",
+      )}
     />
   );
 }
