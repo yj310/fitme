@@ -91,6 +91,7 @@ cd web && pnpm install && pnpm dev
 | `GEMINI_API_KEY`, `NVIDIA_API_KEY`, `KMA_SERVICE_KEY`, `AI_KEY_ENCRYPTION_KEY` | api | |
 | `FREE_DAILY_AGENT_RUNS`(20), `FREE_DAILY_TAGGING`(50), `RATE_LIMIT_PER_MINUTE`(30) | api | 무료 상한 |
 | `DEV_TEST_PASSWORD` | api (개발만) | 시드 테스트 계정 비밀번호 |
+| `ADMIN_USER_IDS` | api | 피드백 게시판 관리자의 Supabase 사용자 ID(쉼표 구분). Supabase → Authentication → Users에서 확인. 비우면 관리자 없음 |
 
 ## 3. 시드 (개발 프로젝트만)
 ```bash
