@@ -33,7 +33,7 @@ depends_on: []
 - [x] 운영 모드 Gemini 503 대책: 기본 모델을 `gemini-3.5-flash-lite`로 (결정 11)
 - [x] 배포: 웹 https://fitme-bay-ten.vercel.app (Vercel) · API https://fitme-ped3.onrender.com (Render) · 운영 Supabase 별도 프로젝트
 - [x] 친구 피드백: 취향과 추구미를 '추구미' 하나로 합치기, 프리셋 제거, 프로필에서 추구미 추가·대표 변경 (결정 13)
-- [ ] 마이그레이션 `20261115000000_preferences_into_style.sql`을 개발·운영 Supabase에 실행 (사용자)
+- [x] 마이그레이션 `20261115000000_preferences_into_style.sql`을 개발·운영 Supabase에 실행 (사용자)
 
 ## 결과 요약
 - API 테스트 43개 통과, 오프라인 평가 30개 요청: ID 유효성 100% · 제외 재추천 0건 · 3개 생성 100%.

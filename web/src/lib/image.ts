@@ -6,7 +6,7 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
-async function loadImage(file: File): Promise<HTMLImageElement> {
+async function loadImage(file: Blob): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -20,10 +20,13 @@ async function loadImage(file: File): Promise<HTMLImageElement> {
   }
 }
 
-/** Resize so the long side is 1024px and encode as WebP (JPEG when WebP encoding is unsupported). */
-export async function resizeForUpload(file: File): Promise<{ blob: Blob; contentType: "image/webp" | "image/jpeg" }> {
+/** Resize so the long side is at most `maxSide` px and encode as WebP (JPEG when WebP encoding is unsupported). */
+export async function resizeForUpload(
+  file: Blob,
+  maxSide = MAX_SIDE,
+): Promise<{ blob: Blob; contentType: "image/webp" | "image/jpeg" }> {
   const img = await loadImage(file);
-  const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+  const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
   const w = Math.max(1, Math.round(img.naturalWidth * scale));
   const h = Math.max(1, Math.round(img.naturalHeight * scale));
   const canvas = document.createElement("canvas");

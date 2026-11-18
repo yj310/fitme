@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>피드백 게시판 시안</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { background: var(--bg); }
+  .page { max-width: 1100px; margin: 0 auto; padding: 32px 16px 48px; }
+  .common { margin: 18px 0 22px; padding: 16px 18px; }
+  .common ul { margin: 6px 0 0; padding-left: 18px; }
+  .common li { margin: 3px 0; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .opt { padding: 18px; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
+  .opt:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .opt .k { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--accent); }
+  .opt h2 { margin: 0; font-size: 18px; }
+  .opt .ref { font-size: 12.5px; color: var(--muted); }
+  .pc { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; }
+  .pc b { display: block; font-size: 12px; margin-bottom: 2px; }
+  .pc .good b { color: var(--good); }
+  .pc .bad b { color: var(--danger); }
+  .pc ul { margin: 0; padding-left: 16px; }
+  .mini { height: 120px; border-radius: 10px; background: var(--tile); display: flex; gap: 6px; padding: 10px; }
+  .mini i { display: block; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); }
+  .go { margin-top: auto; font-weight: 600; color: var(--accent); }
+  .rec { margin-top: 22px; padding: 16px 18px; border-left: 4px solid var(--accent); }
+  @media (max-width: 760px) { .grid, .pc { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="h1" style="font-size:26px">피드백 게시판 시안 4개</h1>
+  <p class="sub">FITME 앱 안에 들어갈 화면이에요. 각 시안 위쪽 검은 띠에서 <b>사용자 화면 / 관리자 화면</b>을 바꿔 볼 수 있어요. 데이터는 예시이고, 사진 올리기(끌어다 놓기·클릭·붙여 넣기)와 상태 바꾸기는 실제로 눌러 볼 수 있어요.</p>
+
+  <div class="card common">
+    <b>모든 시안에 공통으로 들어가는 것</b>
+    <ul>
+      <li>상태 4가지: <span class="st st-new">접수</span> <span class="st st-doing">해결 중</span> <span class="st st-done">해결됨</span> <span class="st st-hold">보류</span>. 바꿀 수 있는 사람은 관리자뿐이에요.</li>
+      <li>종류: 🐞 버그 · 💡 개선 제안 · 💬 기타</li>
+      <li>사진: 최대 5장. 끌어다 놓기, 클릭해서 고르기, 스크린샷 <span class="kbd">⌘/Ctrl</span>+<span class="kbd">V</span> 붙여 넣기 모두 돼요.</li>
+      <li>자동 기록: 어느 화면에서 남겼는지, 기기·브라우저</li>
+      <li>관리자 답변: 남긴 사람이 볼 수 있고, 상태가 바뀌면 알림이 가요.</li>
+    </ul>
+  </div>
+
+  <div class="grid">
+    <a class="card opt" href="a-kanban.html">
+      <span class="k">A</span><h2>칸반 보드</h2>
+      <span class="ref">참고: Trello · Linear Board · GitHub Projects</span>
+      <div class="mini"><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i></div>
+      <div class="pc">
+        <div class="good"><b>좋은 점</b><ul><li>전체 진행 상황이 한눈에 보여요</li><li>카드를 끌어서 상태를 바꿔요</li></ul></div>
+        <div class="bad"><b>아쉬운 점</b><ul><li>글이 많아지면 칸이 길어져요</li><li>휴대폰에서는 옆으로 넘겨 봐야 해요</li></ul></div>
+      </div>
+      <span class="go">열어 보기 →</span>
+    </a>
+    <a class="card opt" href="b-inbox.html">
+      <span class="k">B</span><h2>목록 + 상세 패널</h2>
+      <span class="ref">참고: Linear 받은편지함 · GitHub Issues · 메일함</span>
+      <div class="mini"><i style="width:38%"></i><i style="flex:1"></i></div>
+      <div class="pc">
+        <div class="good"><b>좋은 점</b><ul><li>관리하기 가장 빨라요 (키보드 <span class="kbd">J</span>/<span class="kbd">K</span>, <span class="kbd">1</span>–<span class="kbd">4</span>)</li><li>사진·대화 기록을 크게 봐요</li><li>자주 쓰는 답변 버튼</li></ul></div>
+        <div class="bad"><b>아쉬운 점</b><ul><li>사용자는 자기 글만 봐서, 같은 문제가 중복으로 올라올 수 있어요</li></ul></div>
+      </div>
+      <span class="go">열어 보기 →</span>
+    </a>
+    <a class="card opt" href="c-community.html">
+      <span class="k">C</span><h2>공감 게시판</h2>
+      <span class="ref">참고: Canny · Featurebase · Frill</span>
+      <div class="mini" style="flex-direction:column"><i style="height:28px"></i><i style="flex:1"></i><i style="flex:1"></i></div>
+      <div class="pc">
+        <div class="good"><b>좋은 점</b><ul><li>"나도 겪었어요"로 중요한 것부터 고칠 수 있어요</li><li>쓰는 중에 비슷한 글을 보여 줘서 중복이 줄어요</li><li>"최근에 고쳤어요"가 신뢰를 줘요</li></ul></div>
+        <div class="bad"><b>아쉬운 점</b><ul><li>모든 글이 모두에게 공개돼요</li><li>관리 기능이 카드 안에 있어 많아지면 번거로워요</li></ul></div>
+      </div>
+      <span class="go">열어 보기 →</span>
+    </a>
+    <a class="card opt" href="d-widget.html">
+      <span class="k">D</span><h2>어디서나 제보 버튼</h2>
+      <span class="ref">참고: Userback · BugPin · Intercom</span>
+      <div class="mini" style="position:relative"><i style="flex:1"></i><i style="position:absolute;right:14px;bottom:14px;width:70px;height:60px;border-color:var(--accent)"></i></div>
+      <div class="pc">
+        <div class="good"><b>좋은 점</b><ul><li>문제가 생긴 그 화면에서 바로 남겨요</li><li>지금 화면 캡처가 자동으로 붙어요</li><li>관리자는 표로 한 번에 봐요</li></ul></div>
+        <div class="bad"><b>아쉬운 점</b><ul><li>떠 있는 버튼이 화면을 조금 가려요</li><li>다른 사람 글은 안 보여요</li></ul></div>
+      </div>
+      <span class="go">열어 보기 →</span>
+    </a>
+  </div>
+
+  <div class="card rec">
+    <b>제 추천: D의 제보 버튼 + B의 관리 화면</b>
+    <p class="sub" style="margin-top:6px">친구들은 쓰다가 막힌 화면에서 바로 남기고(스크린샷 자동 첨부), 관리는 B처럼 목록과 상세를 나란히 보며 빠르게 처리해요. 같은 문제가 많이 올라오면 나중에 C의 "나도 겪었어요"를 더할 수 있어요. 섞어서 고르셔도 돼요.</p>
+  </div>
+</div>
+</body>
+</html>

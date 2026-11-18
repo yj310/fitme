@@ -255,10 +255,57 @@ class SupabaseStore:
                                                 "is_free_tier": "eq.true",
                                                 "created_at": f"gte.{since.isoformat()}"})
 
+    # ── 피드백 게시판: the user's own posts (RLS) ──
+    async def insert_board_post(self, row: dict) -> dict:
+        return (await self.db.insert("board_posts", {**row, "user_id": self.user_id}))[0]
+
+    async def list_my_board_posts(self) -> list[dict]:
+        return await self.db.select("board_posts", {"user_id": eq(self.user_id), "order": "created_at.desc"})
+
+    async def get_my_board_post(self, pid: int) -> dict | None:
+        return await self.db.select_one("board_posts", {"id": eq(pid), "user_id": eq(self.user_id)})
+
+    async def list_board_comments(self, post_ids: list[int]) -> list[dict]:
+        if not post_ids:
+            return []
+        return await self.db.select("board_comments", {"post_id": in_(post_ids), "order": "created_at.asc"})
+
+    async def insert_board_comment(self, row: dict) -> dict:
+        return (await self.db.insert("board_comments", {**row, "user_id": self.user_id}))[0]
+
+    async def mark_board_seen(self, at: str) -> None:
+        await self.db.update("board_posts", {"user_id": eq(self.user_id)}, {"author_seen_at": at})
+
+    # ── 피드백 게시판: admin (service role). Callers must have checked require_admin first. ──
+    async def admin_list_board_posts(self) -> list[dict]:
+        return await self.admin.select("board_posts", {"select": "*,users(nickname)", "order": "created_at.desc",
+                                                       "limit": "500"})
+
+    async def admin_get_board_post(self, pid: int) -> dict | None:
+        return await self.admin.select_one("board_posts", {"id": eq(pid), "select": "*,users(nickname)"})
+
+    async def admin_update_board_post(self, pid: int, values: dict) -> dict | None:
+        rows = await self.admin.update("board_posts", {"id": eq(pid)}, values)
+        return rows[0] if rows else None
+
+    async def admin_list_board_comments(self, post_ids: list[int]) -> list[dict]:
+        if not post_ids:
+            return []
+        return await self.admin.select("board_comments", {"post_id": in_(post_ids), "order": "created_at.asc"})
+
+    async def admin_insert_board_comment(self, row: dict) -> dict:
+        return (await self.admin.insert("board_comments", {**row, "user_id": self.user_id, "is_admin": True}))[0]
+
     # ── account deletion (service role) ──
     async def all_image_paths(self) -> list[str]:
         rows = await self.admin.select("clothing_items", {"user_id": eq(self.user_id), "select": "image_path"})
         return [r["image_path"] for r in rows if r.get("image_path")]
+
+    async def board_image_paths(self) -> list[str]:
+        """Photos this user attached to board posts and comments (bucket 'board')."""
+        posts = await self.admin.select("board_posts", {"user_id": eq(self.user_id), "select": "image_paths"})
+        comments = await self.admin.select("board_comments", {"user_id": eq(self.user_id), "select": "image_paths"})
+        return [p for r in posts + comments for p in r.get("image_paths") or []]
 
     async def delete_user_rows(self) -> None:
         # users → everything else cascades (ON DELETE CASCADE).

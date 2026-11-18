@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시안 A · 칸반 보드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="shared.js"></script>
+<style>
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .filters .input { width: 220px; }
+  .board { display: grid; grid-template-columns: repeat(3, minmax(240px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
+  .col { background: var(--tile); border-radius: 14px; padding: 10px; min-height: 420px; display: flex; flex-direction: column; gap: 8px; transition: outline-color .15s; outline: 2px dashed transparent; outline-offset: -2px; }
+  .col.over { outline-color: var(--accent); }
+  .col-h { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 6px; }
+  .col-h .n { font-family: "IBM Plex Mono", monospace; color: var(--muted); font-size: 12px; }
+  .kcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; text-align: left; width: 100%; }
+  .kcard:hover { border-color: var(--line-strong); }
+  body.admin .kcard { cursor: grab; }
+  .kcard.dragging { opacity: .4; }
+  .kcard .t { font-weight: 600; font-size: 13.5px; }
+  .kcard .meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  .kcard .meta .sp { flex: 1; }
+  .kcard .thumb { width: 48px; height: 48px; }
+  .col-done .kcard .t { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 12.5px; text-align: center; padding: 16px 0; }
+  .detail-img { display: flex; gap: 8px; flex-wrap: wrap; }
+  .detail-img .thumb { width: 150px; height: 156px; }
+  .reply { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .hint { font-size: 12.5px; color: var(--muted); }
+  @media (max-width: 760px) { .board { grid-template-columns: repeat(3, 82vw); } }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>시안 A · 칸반 보드</b><span>참고: Trello · Linear Board · GitHub Projects</span>
+  <span class="sp"></span>
+  <span class="seg"><button data-mode="user" class="on">사용자 화면</button><button data-mode="admin">관리자 화면</button></span>
+  <a href="index.html">← 시안 목록</a>
+</div>
+<div class="app">
+  <script>document.write(sidebar());</script>
+  <main class="main">
+    <div class="top">
+      <div>
+        <h1 class="h1">피드백</h1>
+        <p class="sub user-only">불편한 점이나 바라는 점을 남겨 주세요. 어디까지 해결됐는지 여기서 볼 수 있어요.</p>
+        <p class="sub admin-only">카드를 끌어서 다른 칸에 놓으면 상태가 바뀌어요. 남긴 사람에게 알림이 가요.</p>
+      </div>
+      <button class="btn primary" id="newBtn">+ 피드백 남기기</button>
+    </div>
+    <div class="filters">
+      <input class="input" placeholder="검색" id="q">
+      <span class="seg2" id="typeSeg"><button class="on" data-t="">전체</button><button data-t="bug">🐞 버그</button><button data-t="idea">💡 제안</button><button data-t="etc">💬 기타</button></span>
+      <label class="admin-only hint"><input type="checkbox" id="showHold"> 보류 함께 보기</label>
+    </div>
+    <div class="board" id="board"></div>
+  </main>
+</div>
+
+<dialog class="modal" id="detail"></dialog>
+
+<dialog class="modal" id="write">
+  <div class="modal-h">피드백 남기기 <button class="btn ghost sm" data-close>✕</button></div>
+  <div class="modal-b">
+    <span class="seg2" id="wType"><button class="on" data-t="bug">🐞 버그</button><button data-t="idea">💡 개선 제안</button><button data-t="etc">💬 기타</button></span>
+    <input class="input" placeholder="한 줄로 요약해 주세요 (예: 사진 올리기 버튼이 안 눌려요)">
+    <textarea class="textarea" placeholder="어떤 화면에서, 무엇을 했을 때 그랬나요?"></textarea>
+    <div class="drop" id="drop"><b>사진을 끌어다 놓거나 클릭</b> · 스크린샷은 <span class="kbd">⌘/Ctrl</span>+<span class="kbd">V</span>로 붙여 넣기 (최대 5장)</div>
+    <input type="file" accept="image/*" multiple hidden id="file">
+    <div class="thumbs" id="picked"></div>
+    <span class="hint">지금 보던 화면(예: 옷장 · 옷 등록)과 기기 정보가 함께 저장돼요.</span>
+  </div>
+  <div class="modal-f"><button class="btn" data-close>취소</button><button class="btn primary" id="send">올리기</button></div>
+</dialog>
+
+<script>
+  const cols = [
+    { key: "new", label: "접수", hint: "확인 전" },
+    { key: "doing", label: "해결 중", hint: "고치는 중" },
+    { key: "done", label: "해결됨", hint: "최근 30일" },
+  ];
+  let typeFilter = "", q = "";
+  const board = document.getElementById("board");
+
+  function render() {
+    const showHold = document.getElementById("showHold").checked && document.body.classList.contains("admin");
+    const list = showHold ? [...cols, { key: "hold", label: "보류", hint: "" }] : cols;
+    board.style.gridTemplateColumns = `repeat(${list.length}, minmax(240px, 1fr))`;
+    board.innerHTML = list.map((c) => {
+      const items = POSTS.filter((p) => p.status === c.key && (!typeFilter || p.type === typeFilter) && (!q || p.title.includes(q)));
+      return `<section class="col col-${c.key}" data-col="${c.key}">
+        <div class="col-h">${statusChip(c.key)}<span class="n">${items.length}</span></div>
+        ${items.map((p) => `
+          <button class="kcard" draggable="false" data-id="${p.id}">
+            <div style="display:flex;gap:6px;align-items:center">${typeChip(p.type)}<span class="mono muted" style="font-size:11px">#${p.id}</span></div>
+            <span class="t">${esc(p.title)}</span>
+            ${p.shots.length ? `<div class="thumbs">${thumbsHTML(p.shots)}</div>` : ""}
+            <div class="meta"><span>${p.author} · ${p.date}</span><span class="sp"></span>${p.comments ? `💬 ${p.comments}` : ""} ${p.shots.length ? `🖼 ${p.shots.length}` : ""}</div>
+          </button>`).join("") || `<div class="empty">없어요</div>`}
+      </section>`;
+    }).join("");
+    const admin = document.body.classList.contains("admin");
+    board.querySelectorAll(".kcard").forEach((el) => {
+      el.draggable = admin;
+      el.addEventListener("click", () => openDetail(+el.dataset.id));
+      el.addEventListener("dragstart", (e) => { el.classList.add("dragging"); e.dataTransfer.setData("text/plain", el.dataset.id); });
+      el.addEventListener("dragend", () => el.classList.remove("dragging"));
+    });
+    board.querySelectorAll(".col").forEach((col) => {
+      col.addEventListener("dragover", (e) => { if (admin) { e.preventDefault(); col.classList.add("over"); } });
+      col.addEventListener("dragleave", () => col.classList.remove("over"));
+      col.addEventListener("drop", (e) => {
+        e.preventDefault(); col.classList.remove("over");
+        const p = POSTS.find((x) => x.id === +e.dataTransfer.getData("text/plain"));
+        if (p && p.status !== col.dataset.col) { p.status = col.dataset.col; render(); toast(`#${p.id} → ${STATUS[p.status].label} · ${p.author}님께 알림`); }
+      });
+    });
+  }
+
+  function openDetail(id) {
+    const p = POSTS.find((x) => x.id === id);
+    const d = document.getElementById("detail");
+    d.innerHTML = `
+      <div class="modal-h"><span>${typeChip(p.type)} <span class="mono muted">#${p.id}</span></span><button class="btn ghost sm" data-close>✕</button></div>
+      <div class="modal-b">
+        <div style="font-size:17px;font-weight:700">${esc(p.title)}</div>
+        <div class="hint">${p.author} · ${p.date} · ${p.page} · ${p.device}</div>
+        ${p.body ? `<div>${esc(p.body)}</div>` : ""}
+        ${p.shots.length ? `<div class="detail-img">${thumbsHTML(p.shots, 150)}</div>` : ""}
+        <div style="display:flex;gap:8px;align-items:center">상태 ${statusChip(p.status)}
+          <select class="select admin-only" style="width:auto" id="stSel">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === p.status ? "selected" : ""}>${v.label}</option>`).join("")}</select>
+        </div>
+        ${p.reply ? `<div class="reply"><b>관리자</b> · ${esc(p.reply)}</div>` : ""}
+        <textarea class="textarea admin-only" placeholder="남긴 사람에게 보일 답변 (예: 11.18에 고쳤어요)" style="min-height:64px"></textarea>
+      </div>
+      <div class="modal-f admin-only"><button class="btn primary" data-close>저장</button></div>`;
+    d.querySelector("#stSel")?.addEventListener("change", (e) => { p.status = e.target.value; render(); toast(`#${p.id} → ${STATUS[p.status].label}`); });
+    d.showModal();
+  }
+
+  document.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) e.target.closest("dialog").close(); });
+  document.getElementById("typeSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#typeSeg button").forEach((x) => x.classList.toggle("on", x === b));
+    typeFilter = b.dataset.t; render();
+  });
+  document.getElementById("q").addEventListener("input", (e) => { q = e.target.value.trim(); render(); });
+  document.getElementById("showHold").addEventListener("change", render);
+  document.getElementById("wType").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#wType button").forEach((x) => x.classList.toggle("on", x === b));
+  });
+  const write = document.getElementById("write");
+  const picker = imagePicker({ drop: document.getElementById("drop"), input: document.getElementById("file"), list: document.getElementById("picked"), scope: write });
+  document.getElementById("newBtn").addEventListener("click", () => write.showModal());
+  document.getElementById("send").addEventListener("click", () => { write.close(); picker.clear(); toast("올렸어요. 접수 칸에 보여요"); });
+  modeSwitch(render);
+  render();
+</script>
+</body>
+</html>

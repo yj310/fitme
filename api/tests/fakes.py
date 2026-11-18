@@ -150,9 +150,14 @@ class FakeAdapter:
 
 
 class FakeStorage:
-    def __init__(self, user_id):
+    def __init__(self, user_id, bucket="closet"):
         self.user_id = user_id
+        self.bucket = bucket
         self.removed = []
+        self.buckets: dict[str, FakeStorage] = {}
+
+    def for_bucket(self, bucket, service_key=None):
+        return self.buckets.setdefault(bucket, FakeStorage(self.user_id, bucket))
 
     def owns(self, path):
         return path.startswith(self.user_id + "/")
@@ -164,7 +169,7 @@ class FakeStorage:
         return f"https://storage.test/upload/{path}?token=t"
 
     async def signed_urls(self, paths, expires_in=3600):
-        return {p: f"https://storage.test/sign/{p}" for p in paths if p}
+        return {p: f"https://storage.test/sign/{self.bucket}/{p}" for p in paths if p}
 
     async def download(self, path):
         return b"\x00fake", "image/webp"

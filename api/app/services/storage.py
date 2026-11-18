@@ -1,7 +1,8 @@
-"""Supabase Storage: signed upload/download URLs for the private 'closet' bucket (spec 11.3).
+"""Supabase Storage: signed upload/download URLs for the private buckets (spec 11.3).
 
-Calls are made with the user's JWT, so storage RLS (own folder only) applies.
-Signed URLs are never logged.
+'closet' holds clothing photos, 'board' the pictures attached to 피드백 게시판 posts.
+Calls are made with the user's JWT, so storage RLS (own folder only) applies; only the admin
+board view signs with the service role (see routers/board.py). Signed URLs are never logged.
 """
 
 from __future__ import annotations
@@ -18,11 +19,20 @@ BUCKET = "closet"
 
 
 class Storage:
-    def __init__(self, http: httpx.AsyncClient, supabase_url: str, apikey: str, bearer: str, user_id: str):
+    def __init__(self, http: httpx.AsyncClient, supabase_url: str, apikey: str, bearer: str, user_id: str,
+                 bucket: str = BUCKET):
         self.http = http
+        self.supabase_url = supabase_url
         self.base = supabase_url.rstrip("/") + "/storage/v1"
+        self.apikey, self.bearer = apikey, bearer
         self.headers = {"apikey": apikey, "Authorization": f"Bearer {bearer}"}
         self.user_id = user_id
+        self.bucket = bucket
+
+    def for_bucket(self, bucket: str, service_key: str | None = None) -> Storage:
+        """Same user, another bucket. `service_key` signs as the service role (admin board view only)."""
+        key = service_key or self.bearer
+        return Storage(self.http, self.supabase_url, service_key or self.apikey, key, self.user_id, bucket)
 
     def owns(self, path: str) -> bool:
         parts = path.split("/")
@@ -33,7 +43,7 @@ class Storage:
         return f"{self.user_id}/{uuid.uuid4()}.{ext}"
 
     async def signed_upload_url(self, path: str) -> str:
-        r = await self._post(f"/object/upload/sign/{BUCKET}/{path}", {})
+        r = await self._post(f"/object/upload/sign/{self.bucket}/{path}", {})
         url = r.get("url") or r.get("signedURL") or ""
         return self.base + url if url.startswith("/") else url
 
@@ -41,7 +51,7 @@ class Storage:
         paths = [p for p in paths if p]
         if not paths:
             return {}
-        rows = await self._post(f"/object/sign/{BUCKET}", {"paths": paths, "expiresIn": expires_in})
+        rows = await self._post(f"/object/sign/{self.bucket}", {"paths": paths, "expiresIn": expires_in})
         out = {}
         for row in rows or []:
             signed = row.get("signedURL") or row.get("signedUrl")
@@ -51,7 +61,7 @@ class Storage:
 
     async def download(self, path: str) -> tuple[bytes, str]:
         try:
-            r = await self.http.get(f"{self.base}/object/authenticated/{BUCKET}/{path}", headers=self.headers,
+            r = await self.http.get(f"{self.base}/object/authenticated/{self.bucket}/{path}", headers=self.headers,
                                     timeout=15.0)
         except httpx.HTTPError as e:
             raise ApiError("STORAGE_UNAVAILABLE", "사진을 불러오지 못했어요.", 503) from e
@@ -64,7 +74,7 @@ class Storage:
         if not paths:
             return
         try:
-            await self.http.request("DELETE", f"{self.base}/object/{BUCKET}", json={"prefixes": paths},
+            await self.http.request("DELETE", f"{self.base}/object/{self.bucket}", json={"prefixes": paths},
                                     headers=self.headers, timeout=15.0)
         except httpx.HTTPError:
             log.warning("storage delete failed for %d paths", len(paths))

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시안 D · 어디서나 제보 버튼</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="shared.js"></script>
+<style>
+  /* the page behind: the real closet screen, simplified */
+  .fake-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .grid .item { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .grid .item div { aspect-ratio: 1; background: var(--tile); }
+  .grid .item span { display: block; padding: 6px 8px; font-size: 12.5px; }
+
+  /* floating button + panel */
+  .fab { position: fixed; right: 22px; bottom: 22px; z-index: 40; display: flex; align-items: center; gap: 6px; border: 0; border-radius: 999px; padding: 10px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+  .fab .badge { background: var(--good); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 6px; }
+  .panel { position: fixed; right: 22px; bottom: 76px; z-index: 41; width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 140px); display: none; flex-direction: column; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.22); }
+  .panel.on { display: flex; }
+  .ptabs { display: flex; border-bottom: 1px solid var(--line); }
+  .ptabs button { flex: 1; border: 0; background: transparent; padding: 11px; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+  .ptabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+  .pbody { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .kind { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .kind button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 8px 4px; font-size: 12.5px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .kind button span { font-size: 20px; }
+  .kind button.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .ctx { display: flex; align-items: center; gap: 8px; background: var(--app-bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+  .ctx .thumb { width: 54px; height: 56px; }
+  .ctx label { margin-left: auto; white-space: nowrap; }
+  .mine { display: flex; flex-direction: column; gap: 10px; }
+  .mine .it { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .steps { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+  .steps i { flex: 1; height: 3px; border-radius: 2px; background: var(--line); }
+  .steps i.on { background: var(--accent); }
+  .steps i.ok { background: var(--good); }
+  .it .reply { margin-top: 8px; background: var(--good-soft); border-radius: 8px; padding: 6px 10px; font-size: 12.5px; }
+  .newdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--good); margin-left: 4px; vertical-align: middle; }
+
+  /* admin inbox (shown in 관리자 화면) */
+  .inbox-h { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { padding: 12px 14px; }
+  .stat b { font-size: 22px; display: block; font-family: "IBM Plex Mono", monospace; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 13px; vertical-align: middle; }
+  th { background: var(--app-bg); color: var(--muted); font-weight: 600; font-size: 12px; }
+  td .thumb { width: 40px; height: 40px; }
+  tr:hover td { background: var(--app-bg); }
+  @media (max-width: 760px) { .stats { grid-template-columns: repeat(2, 1fr); } .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>시안 D · 어디서나 제보 버튼</b><span>참고: Userback · BugPin · Intercom (화면 위 버튼 + 관리자 수신함)</span>
+  <span class="sp"></span>
+  <span class="seg"><button data-mode="user" class="on">사용자 화면</button><button data-mode="admin">관리자 화면</button></span>
+  <a href="index.html">← 시안 목록</a>
+</div>
+<div class="app">
+  <script>document.write(sidebar("옷장").replace('<a href="#" class="">피드백<span class="new">NEW</span></a>', '<a href="#" class="admin-only">피드백 관리<span class="new">3</span></a>'));</script>
+  <main class="main">
+    <!-- 사용자: 아무 화면(여기선 옷장)에서 오른쪽 아래 버튼으로 바로 제보 -->
+    <section class="user-only">
+      <div class="fake-h"><div><h1 class="h1">옷장</h1><p class="sub">오른쪽 아래 <b>피드백</b> 버튼은 모든 화면에 떠 있어요. 눌러 보세요.</p></div><button class="btn primary">옷 사진 올리기</button></div>
+      <div class="grid">${"<div></div>"}</div>
+    </section>
+
+    <!-- 관리자: 수신함 -->
+    <section class="admin-only">
+      <div class="inbox-h">
+        <div><h1 class="h1">피드백 관리</h1><p class="sub">상태를 바꾸면 남긴 사람의 피드백 버튼에 초록 점으로 알려요.</p></div>
+        <span class="seg2" id="aTab"><button class="on" data-s="new">접수</button><button data-s="doing">해결 중</button><button data-s="done">해결됨</button><button data-s="hold">보류</button></span>
+      </div>
+      <div class="stats" id="stats"></div>
+      <table>
+        <thead><tr><th>상태</th><th>내용</th><th class="hide-sm">사진</th><th class="hide-sm">화면 · 기기</th><th>남긴 사람</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+<button class="fab user-only" id="fab">💬 피드백 <span class="badge" id="fabBadge">1</span></button>
+<div class="panel card" id="panel">
+  <div class="ptabs"><button class="on" data-p="write">남기기</button><button data-p="mine">내 피드백<span class="newdot"></span></button></div>
+  <div class="pbody" id="pWrite">
+    <div class="kind" id="kind"><button class="on"><span>🐞</span>안 돼요</button><button><span>💡</span>이러면 좋겠어요</button><button><span>💬</span>그 밖에</button></div>
+    <textarea class="textarea" placeholder="무엇이 어땠나요? 짧게 적어도 돼요"></textarea>
+    <div class="ctx"><span class="thumb">${""}</span><span><b>지금 화면</b><br><span class="muted">옷장 · iPhone Safari</span></span><label><input type="checkbox" checked> 화면 캡처 첨부</label></div>
+    <div class="drop" id="drop" style="padding:10px"><b>사진 더 넣기</b> · 끌어다 놓기, 클릭, <span class="kbd">⌘/Ctrl</span>+<span class="kbd">V</span></div>
+    <input type="file" accept="image/*" multiple hidden id="file">
+    <div class="thumbs" id="picked"></div>
+    <button class="btn primary" id="send">보내기</button>
+  </div>
+  <div class="pbody" id="pMine" style="display:none"><div class="mine" id="mine"></div></div>
+</div>
+
+<script>
+  // fill the fake closet + the capture thumbnail
+  document.querySelector(".grid").innerHTML = ["흰 셔츠", "네이비 니트", "데님", "슬랙스", "트렌치코트", "로퍼", "운동화", "가디건"].map((n) => `<div class="item"><div></div><span>${n}</span></div>`).join("");
+  document.querySelector(".ctx .thumb").innerHTML = shotSVG("closet");
+
+  const panel = document.getElementById("panel");
+  document.getElementById("fab").addEventListener("click", () => panel.classList.toggle("on"));
+  document.querySelector(".ptabs").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll(".ptabs button").forEach((x) => x.classList.toggle("on", x === b));
+    document.getElementById("pWrite").style.display = b.dataset.p === "write" ? "" : "none";
+    document.getElementById("pMine").style.display = b.dataset.p === "mine" ? "" : "none";
+    if (b.dataset.p === "mine") { b.querySelector(".newdot")?.remove(); document.getElementById("fabBadge").remove(); }
+  });
+  document.getElementById("kind").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#kind button").forEach((x) => x.classList.toggle("on", x === b));
+  });
+  const picker = imagePicker({ drop: document.getElementById("drop"), input: document.getElementById("file"), list: document.getElementById("picked"), scope: panel });
+  document.getElementById("send").addEventListener("click", () => { picker.clear(); panel.classList.remove("on"); toast("보냈어요. '내 피드백'에서 진행 상황을 볼 수 있어요"); });
+
+  const order = ["new", "doing", "done"];
+  document.getElementById("mine").innerHTML = POSTS.filter((p) => p.author === "서연" || p.id === 6).map((p) => {
+    const i = order.indexOf(p.status);
+    return `<div class="it">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b style="font-size:13.5px">${esc(p.title)}</b>${statusChip(p.status)}</div>
+      <div class="steps"><span>접수</span><i class="${i >= 1 ? (i === 2 ? "ok" : "on") : ""}"></i><span>해결 중</span><i class="${i === 2 ? "ok" : ""}"></i><span>해결됨</span></div>
+      ${p.reply ? `<div class="reply">${esc(p.reply)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  let aTab = "new";
+  function renderAdmin() {
+    const c = (s) => POSTS.filter((p) => p.status === s).length;
+    document.getElementById("stats").innerHTML = [["접수", c("new"), "var(--warn)"], ["해결 중", c("doing"), "var(--accent)"], ["해결됨", c("done"), "var(--good)"], ["이번 주 새 글", 4, "var(--ink)"]]
+      .map(([l, n, col]) => `<div class="card stat"><span class="muted" style="font-size:12px">${l}</span><b style="color:${col}">${n}</b></div>`).join("");
+    document.getElementById("tbody").innerHTML = POSTS.filter((p) => p.status === aTab).map((p) => `
+      <tr>
+        <td><select class="select" style="width:auto;padding:3px 8px" data-s="${p.id}">${Object.entries(STATUS).map(([k, v]) => `<option value="${k}" ${k === p.status ? "selected" : ""}>${v.label}</option>`).join("")}</select></td>
+        <td><div style="display:flex;gap:6px;align-items:center">${TYPE[p.type].icon}<b>${esc(p.title)}</b></div>${p.body ? `<div class="muted" style="font-size:12.5px">${esc(p.body)}</div>` : ""}</td>
+        <td class="hide-sm"><div class="thumbs">${thumbsHTML(p.shots)}</div></td>
+        <td class="hide-sm muted" style="font-size:12.5px">${p.page}<br>${p.device}</td>
+        <td>${p.author}<br><span class="muted" style="font-size:12px">${p.date}</span></td>
+        <td><button class="btn sm">답변</button></td>
+      </tr>`).join("") || `<tr><td colspan="6" class="muted">없어요</td></tr>`;
+  }
+  document.getElementById("tbody").addEventListener("change", (e) => {
+    const s = e.target.closest("select[data-s]"); if (!s) return;
+    const p = POSTS.find((x) => x.id === +s.dataset.s); p.status = s.value;
+    toast(`#${p.id} → ${STATUS[p.status].label} · ${p.author}님 버튼에 알림`); renderAdmin();
+  });
+  document.getElementById("aTab").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    document.querySelectorAll("#aTab button").forEach((x) => x.classList.toggle("on", x === b)); aTab = b.dataset.s; renderAdmin();
+  });
+  modeSwitch(() => panel.classList.remove("on"));
+  renderAdmin();
+</script>
+</body>
+</html>

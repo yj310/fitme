@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 30
 
     dev_test_password: str = ""
+    # 피드백 게시판 관리자: comma-separated Supabase user ids (decision 14). Set in the server env only.
+    admin_user_ids: str = ""
 
     # Tunables
     llm_timeout_s: float = 40.0
@@ -45,6 +47,10 @@ class Settings(BaseSettings):
     @property
     def is_dev(self) -> bool:
         return self.app_env == "development"
+
+    @property
+    def admin_ids(self) -> set[str]:
+        return {x.strip() for x in self.admin_user_ids.split(",") if x.strip()}
 
     @property
     def origins(self) -> list[str]:

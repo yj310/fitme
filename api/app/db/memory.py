@@ -21,7 +21,9 @@ class MemoryDB:
     def __init__(self):
         self.t: dict[str, list[dict]] = {k: [] for k in (
             "users", "clothing_items", "style_profiles", "conversations", "chat_messages", "agent_runs",
-            "outfits", "outfit_items", "feedback", "ai_connections", "ai_task_settings", "ai_usage")}
+            "outfits", "outfit_items", "feedback", "ai_connections", "ai_task_settings", "ai_usage",
+            "board_posts", "board_comments")}
+        self.seq = 0  # bigint ids (board)
         self.secrets: dict[tuple[str, str], bytes] = {}
 
 
@@ -293,6 +295,71 @@ class MemoryStore:
         return sum(1 for r in self._mine("ai_usage") if r["task"] == "tagging" and r.get("is_free_tier")
                    and r["created_at"] >= since.isoformat())
 
+    # 피드백 게시판
+    def _board_id(self) -> int:
+        self.m.seq += 1
+        return self.m.seq
+
+    def _with_nick(self, post: dict) -> dict:
+        u = next((x for x in self.m.t["users"] if x["id"] == post["user_id"]), None)
+        return {**copy.deepcopy(post), "users": {"nickname": u["nickname"]} if u else None}
+
+    async def insert_board_post(self, row):
+        r = {"id": self._board_id(), "status": "new", "image_paths": [], "page": None, "device": None,
+             "admin_updated_at": None, "author_seen_at": None, "created_at": _now(), "updated_at": _now(),
+             **row, "user_id": self.user_id}
+        self.m.t["board_posts"].append(r)
+        return copy.deepcopy(r)
+
+    async def list_my_board_posts(self):
+        return [copy.deepcopy(r) for r in reversed(self._mine("board_posts"))]
+
+    async def get_my_board_post(self, pid):
+        r = next((r for r in self._mine("board_posts") if r["id"] == pid), None)
+        return copy.deepcopy(r) if r else None
+
+    async def list_board_comments(self, post_ids):
+        mine = {r["id"] for r in self._mine("board_posts")}  # RLS: comments on your own posts only
+        return [copy.deepcopy(c) for c in self.m.t["board_comments"] if c["post_id"] in post_ids and c["post_id"] in mine]
+
+    def _comment(self, row, admin):
+        r = {"id": self._board_id(), "kind": "comment", "body": "", "status": None, "image_paths": [],
+             "created_at": _now(), **row, "user_id": self.user_id, "is_admin": admin}
+        self.m.t["board_comments"].append(r)
+        return copy.deepcopy(r)
+
+    async def insert_board_comment(self, row):
+        if not any(r["id"] == row["post_id"] for r in self._mine("board_posts")):
+            raise PermissionError("not your post")
+        return self._comment(row, False)
+
+    async def mark_board_seen(self, at):
+        for r in self._mine("board_posts"):
+            r["author_seen_at"] = at
+
+    async def admin_list_board_posts(self):
+        return [self._with_nick(r) for r in reversed(self.m.t["board_posts"])]
+
+    async def admin_get_board_post(self, pid):
+        r = next((r for r in self.m.t["board_posts"] if r["id"] == pid), None)
+        return self._with_nick(r) if r else None
+
+    async def admin_update_board_post(self, pid, values):
+        r = next((r for r in self.m.t["board_posts"] if r["id"] == pid), None)
+        if r is None:
+            return None
+        r.update(values)
+        return copy.deepcopy(r)
+
+    async def admin_list_board_comments(self, post_ids):
+        return [copy.deepcopy(c) for c in self.m.t["board_comments"] if c["post_id"] in post_ids]
+
+    async def admin_insert_board_comment(self, row):
+        return self._comment(row, True)
+
+    async def board_image_paths(self):
+        return [p for r in self._mine("board_posts") + self._mine("board_comments") for p in r.get("image_paths") or []]
+
     async def all_image_paths(self):
         return [r["image_path"] for r in self._mine("clothing_items") if r.get("image_path")]
 
@@ -301,3 +368,5 @@ class MemoryStore:
             key = "id" if table == "users" else "user_id"
             self.m.t[table] = [r for r in self.m.t[table] if r.get(key) != self.user_id]
         self.m.secrets = {k: v for k, v in self.m.secrets.items() if k[0] != self.user_id}
+        posts = {r["id"] for r in self.m.t["board_posts"]}  # ON DELETE CASCADE
+        self.m.t["board_comments"] = [c for c in self.m.t["board_comments"] if c["post_id"] in posts]

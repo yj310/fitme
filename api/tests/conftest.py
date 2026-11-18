@@ -13,6 +13,8 @@ os.environ.setdefault("SUPABASE_URL", "")
 os.environ["FREE_DAILY_AGENT_RUNS"] = "20"
 os.environ["FREE_DAILY_TAGGING"] = "50"
 os.environ["RATE_LIMIT_PER_MINUTE"] = "30"
+# 피드백 게시판: test user B is the admin
+os.environ["ADMIN_USER_IDS"] = "22222222-2222-2222-2222-222222222222"
 
 from fastapi.testclient import TestClient  # noqa: E402
 

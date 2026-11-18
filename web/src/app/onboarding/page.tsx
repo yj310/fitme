@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/AppShell";
 import { TagReviewPanel } from "@/components/closet/TagReviewPanel";
 import { MAX_FILES, useUploadQueue } from "@/components/closet/useUploadQueue";
+import { FeedbackButton } from "@/components/board/FeedbackButton";
 import { DevBand } from "@/components/DevBand";
 import { ItemThumb } from "@/components/ItemThumb";
 import { onboardingDone, useAuth } from "@/components/providers/AuthProvider";
@@ -352,6 +353,7 @@ function Wizard({ me }: { me: User }) {
           </div>
         </div>
       </footer>
+      <FeedbackButton where={`온보딩 · ${STEPS[step].label}`} />
     </div>
   );
 }

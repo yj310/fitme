@@ -101,6 +101,28 @@ type Weather = WeatherSummary | { available: false; date: string; reason: "OUT_O
 |---|---|
 | POST `/dev/session` `{ account: "a" \| "b" }` | 서버 `.env`의 테스트 계정으로 Supabase 로그인 → `{ access_token, refresh_token }`. 웹은 `supabase.auth.setSession()`으로 적용. 운영 모드에서는 404 |
 
+### 피드백 게시판 (결정 14)
+사용자는 자기 글만, 관리자(`ADMIN_USER_IDS`)는 모든 글을 본다. `User.is_admin`으로 웹이 '피드백 관리' 메뉴를 보여 준다.
+```ts
+type BoardStatus = "new" | "doing" | "done" | "hold";   // 접수 · 해결 중 · 해결됨 · 보류
+interface BoardImage { path: string; url: string | null }     // url: 1시간짜리 서명 URL
+interface BoardComment { id: number; kind: "comment" | "status"; is_admin: boolean; body: string; status: BoardStatus | null; images: BoardImage[]; created_at: string }
+interface BoardPost {
+  id: number; kind: "bug" | "idea" | "etc"; title: string;  // title = 본문 첫 줄(60자)
+  body: string; status: BoardStatus; page: string | null; device: string | null;
+  images: BoardImage[]; comments: BoardComment[];           // 상태 변경도 kind "status" 댓글로 남음
+  created_at: string; updated_at: string | null; admin_updated_at: string | null;
+  unread?: boolean;   // 내 글: 관리자가 바꾼 것을 아직 안 봄
+  author?: string;    // 관리자 화면: 남긴 사람 닉네임
+}
+```
+- POST `/board/upload-url` `{ content_type }` → `{ path, upload_url }` (비공개 `board` 버킷, 내 폴더)
+- POST `/board/posts` `{ kind, body(1–2000), page?, device?, image_paths(≤5, 내 폴더만) }` → `BoardPost`. 하루 30개까지
+- GET `/board/mine` → `{ posts: BoardPost[], unread: number }`
+- POST `/board/mine/seen` → 204 (내 글의 새 소식을 읽음으로)
+- POST `/board/posts/{id}/comments` `{ body, image_paths }` → `BoardComment` (내 글에만)
+- 관리자: GET `/admin/board` → `{ posts: BoardPost[], counts: Record<BoardStatus, number> }` · PATCH `/admin/board/{id}` `{ status }` → `BoardPost` · POST `/admin/board/{id}/comments` `{ body, image_paths }` → `BoardPost`. 관리자가 아니면 403
+
 ### 프로필 (F01, F11)
 - GET `/me` → `User`
 ```ts

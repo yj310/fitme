@@ -6,6 +6,10 @@ import type {
   AiConnection,
   AiConnections,
   AiUsage,
+  BoardKind,
+  BoardPost,
+  BoardStatus,
+  BoardComment,
   ChatEvent,
   ChatLatest,
   ChatRequest,
@@ -126,6 +130,10 @@ export const deleteItem = (id: string) => request<void>("DELETE", `/items/${id}`
 
 export async function uploadImage(blob: Blob, contentType: string): Promise<string> {
   const { path, upload_url } = await getUploadUrl(contentType);
+  return putSigned(upload_url, path, blob, contentType);
+}
+
+async function putSigned(upload_url: string, path: string, blob: Blob, contentType: string): Promise<string> {
   let res: Response;
   try {
     res = await fetch(upload_url, { method: "PUT", headers: { "content-type": contentType }, body: blob });
@@ -135,6 +143,26 @@ export async function uploadImage(blob: Blob, contentType: string): Promise<stri
   if (!res.ok) throw new ApiError("UPLOAD_FAILED", "사진을 올리지 못했어요. 다시 시도해 주세요.", res.status);
   return path;
 }
+
+// ── 피드백 게시판 ──
+export async function uploadBoardImage(blob: Blob, contentType: string): Promise<string> {
+  const { path, upload_url } = await request<{ path: string; upload_url: string }>("POST", "/board/upload-url", {
+    body: { content_type: contentType },
+  });
+  return putSigned(upload_url, path, blob, contentType);
+}
+export const createBoardPost = (body: { kind: BoardKind; body: string; page?: string; device?: string; image_paths: string[] }) =>
+  request<BoardPost>("POST", "/board/posts", { body });
+export const getMyBoard = () => request<{ posts: BoardPost[]; unread: number }>("GET", "/board/mine");
+export const markBoardSeen = () => request<void>("POST", "/board/mine/seen");
+export const addBoardComment = (id: number, body: { body: string; image_paths: string[] }) =>
+  request<BoardComment>("POST", `/board/posts/${id}/comments`, { body });
+export const adminListBoard = () =>
+  request<{ posts: BoardPost[]; counts: Record<BoardStatus, number> }>("GET", "/admin/board");
+export const adminSetBoardStatus = (id: number, status: BoardStatus) =>
+  request<BoardPost>("PATCH", `/admin/board/${id}`, { body: { status } });
+export const adminReplyBoard = (id: number, body: { body: string; image_paths: string[] }) =>
+  request<BoardPost>("POST", `/admin/board/${id}/comments`, { body });
 
 // ── 추구미 ──
 export const createStyleProfile = (body: {

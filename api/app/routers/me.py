@@ -84,7 +84,7 @@ async def user_view(ctx: Ctx, row: dict | None = None) -> dict:
     out["onboarding_state"] = out["onboarding_state"] or {}
     out.update(persistent_exclusions=[_exclusion_view(f, items) for f in persistent],
                default_style={"id": default["id"], "style_name": default["style_name"]} if default else None,
-               closet_count=len(active))
+               closet_count=len(active), is_admin=ctx.user.id in ctx.settings.admin_ids)
     return out
 
 
@@ -164,6 +164,7 @@ async def delete_me(ctx: Ctx = Depends(get_ctx)):
     """F11: delete every row, every photo, every AI key, then the auth user."""
     paths = await ctx.store.all_image_paths()
     await ctx.storage.remove(paths)
+    await ctx.storage.for_bucket("board").remove(await ctx.store.board_image_paths())
     await ctx.store.delete_user_rows()
     await _delete_auth_user(ctx)
     log.info("account deleted")

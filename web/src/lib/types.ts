@@ -56,6 +56,8 @@ export interface User {
   persistent_exclusions: PersistentExclusion[];
   default_style: { id: string; style_name: string } | null;
   closet_count: number;
+  /** 피드백 게시판 관리자 (ADMIN_USER_IDS on the server) */
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -372,4 +374,43 @@ export interface AiUsage {
     tagging_limit: number;
   };
   notices: { code: string; provider: string; message: string; at: string }[];
+}
+
+// ── 피드백 게시판 ──
+export type BoardKind = "bug" | "idea" | "etc";
+export type BoardStatus = "new" | "doing" | "done" | "hold";
+
+export interface BoardImage {
+  path: string;
+  url: string | null;
+}
+
+export interface BoardComment {
+  id: number;
+  /** "status": the admin changed the status (shown as a line in the timeline) */
+  kind: "comment" | "status";
+  is_admin: boolean;
+  body: string;
+  status: BoardStatus | null;
+  images: BoardImage[];
+  created_at: string;
+}
+
+export interface BoardPost {
+  id: number;
+  kind: BoardKind;
+  title: string;
+  body: string;
+  status: BoardStatus;
+  page: string | null;
+  device: string | null;
+  images: BoardImage[];
+  comments: BoardComment[];
+  created_at: string;
+  updated_at: string | null;
+  admin_updated_at: string | null;
+  /** 내 피드백: the admin changed something the author hasn't seen yet */
+  unread?: boolean;
+  /** admin view: author's nickname */
+  author?: string;
 }

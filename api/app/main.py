@@ -16,7 +16,7 @@ from app.config import ConfigError, get_model_config, get_pricing, get_settings
 from app.db.postgrest import PostgREST
 from app.deps import AppServices, RateLimiter
 from app.errors import ApiError
-from app.routers import ai, chat, items, me, outfits, styles, system, weather
+from app.routers import ai, board, chat, items, me, outfits, styles, system, weather
 from app.services.weather import WeatherService
 
 
@@ -87,7 +87,7 @@ def create_app() -> FastAPI:
 
     prefix = "/api/v1"
     for r in (system.router, me.router, items.router, styles.router, weather.router, chat.router,
-              outfits.router, ai.router):
+              outfits.router, ai.router, board.router):
         app.include_router(r, prefix=prefix)
     if settings.is_dev:
         app.include_router(system.dev_router, prefix=prefix)

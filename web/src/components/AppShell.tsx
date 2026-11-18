@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { cx } from "@/lib/format";
 import { onboardingDone, useAuth } from "./providers/AuthProvider";
+import { FeedbackButton } from "./board/FeedbackButton";
 import { DevBand } from "./DevBand";
 import { ErrorState, LoadingState } from "./ui";
 
@@ -56,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Logo />
           </Link>
           <nav aria-label="주 메뉴" className="flex flex-col gap-0.5">
-            {NAV.map((n) => {
+            {[...NAV, ...(me.is_admin ? [{ href: "/admin/feedback", label: "피드백 관리" }] : [])].map((n) => {
               const on = pathname === n.href || pathname.startsWith(`${n.href}/`);
               return (
                 <Link
@@ -69,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   )}
                 >
                   <span>{n.label}</span>
-                  {n.count && <span className="font-mono text-xs">{me.closet_count}</span>}
+                  {"count" in n && n.count && <span className="font-mono text-xs">{me.closet_count}</span>}
                 </Link>
               );
             })}
@@ -83,6 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
         <main className="h-full min-h-0 min-w-0 overflow-y-auto">{children}</main>
       </div>
+      {!pathname.startsWith("/admin") && <FeedbackButton />}
     </div>
   );
 }
