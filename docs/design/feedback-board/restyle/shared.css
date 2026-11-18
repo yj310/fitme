@@ -66,3 +66,6 @@ svg.lucide { width: 16px; height: 16px; stroke-width: 1.75; flex: none; }
 .fake-app .looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .fake-app .looks div { height: 260px; }
 .fake-app .bar { height: 46px; margin-top: auto; }
+.mock-bar .hint { color: #7d828c; }
+.empty { color: var(--muted); padding: 20px; margin: 0; list-style: none; }
+.sdot { display: inline-block; }

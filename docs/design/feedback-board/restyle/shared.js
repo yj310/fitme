@@ -1,4 +1,5 @@
-// 피드백 게시판 시안 v2 — sample data and helpers. Nothing here talks to a server.
+// 피드백 게시판 스타일 시안 — sample data, plus the screens drawn with the SAME structure and flow as
+// web/src/components/board (FeedbackButton, admin/feedback page). Each theme file only adds CSS.
 // Posts 1–9 are the real feedback already on the board (authors renamed); 10–12 show open states.
 
 const STATUS = {
@@ -9,9 +10,9 @@ const STATUS = {
 };
 const STATUS_ORDER = ["new", "doing", "done", "hold"];
 const KIND = {
-  bug: { label: "버그", icon: "bug" },
-  idea: { label: "제안", icon: "lightbulb" },
-  etc: { label: "기타", icon: "message-square" },
+  bug: { label: "버그", ask: "안 돼요", icon: "bug" },
+  idea: { label: "개선 제안", ask: "이러면 좋겠어요", icon: "lightbulb" },
+  etc: { label: "기타", ask: "그 밖에", icon: "message-square" },
 };
 
 const IMG = { style: "img/capture-style.jpg", onboarding: "img/capture-onboarding.jpg" };
@@ -82,48 +83,5 @@ const POSTS = [
 /** The signed-in tester's own posts in the user widget. */
 const MINE = [POSTS[1], POSTS[4], POSTS[0]].map((p, i) => ({ ...p, author: "나", unread: i === 0 }));
 
-const QUICK = ["확인했어요. 고쳐 볼게요.", "고쳤어요. 새로고침한 뒤 다시 확인해 주세요.", "어떤 순서로 하셨는지 알려 주실래요?"];
+const QUICK = ["확인했어요. 고쳐 볼게요!", "고쳤어요. 새로고침한 뒤 다시 확인해 주세요.", "재현이 안 돼요. 어떤 순서로 하셨는지 알려 주실래요?"];
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const icon = (name, cls = "") => `<i data-lucide="${name}" class="${cls}"></i>`;
-const stIcon = (s, cls = "") => `<i data-lucide="${STATUS[s].icon}" class="st-${s} ${cls}" aria-label="${STATUS[s].label}"></i>`;
-const count = (s) => POSTS.filter((p) => s === "all" || p.status === s).length;
-const replies = (p) => p.log.filter((l) => !l.status).length;
-
-function fakeApp() {
-  return `<div class="fake-app" aria-hidden="true">
-    <aside class="fs"><div class="logo">FITME</div>
-      <span class="on">대화</span><span>옷장</span><span>오늘의 코디</span><span>저장한 코디</span><span>내 프로필</span><span>설정</span></aside>
-    <main class="fm"><h2>스타일리스트에게 말하기</h2>
-      <div class="ph" style="height:64px"></div>
-      <div class="looks"><div class="ph"></div><div class="ph"></div><div class="ph"></div></div>
-      <div class="ph bar"></div></main></div>`;
-}
-
-/** Top bar: links between directions + admin/user view switch. Calls window.render(view). */
-function mount(current) {
-  const files = [["a-tracker.html", "A 이슈 트래커"], ["b-inbox.html", "B 메신저"], ["c-board.html", "C 게시판"]];
-  const bar = document.createElement("div");
-  bar.className = "mock-bar";
-  bar.innerHTML = `<a href="index.html"><b>피드백 게시판 시안 v2</b></a>
-    ${files.map(([f, l]) => `<a href="${f}${location.hash}" class="${f === current ? "on" : ""}">${l}</a>`).join("")}
-    <span class="sp"></span>
-    <div class="seg" role="group" aria-label="보기">
-      <button data-v="admin">관리자 화면</button><button data-v="user">사용자 피드백 버튼</button></div>`;
-  document.body.prepend(bar);
-  const set = (v) => {
-    location.hash = v;
-    bar.querySelectorAll(".seg button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
-    bar.querySelectorAll("a[href$='.html'], a[href*='.html#']").forEach((a) => {
-      if (a.getAttribute("href") !== "index.html") a.href = a.getAttribute("href").split("#")[0] + "#" + v;
-    });
-    window.render(v);
-  };
-  bar.querySelectorAll(".seg button").forEach((b) => (b.onclick = () => set(b.dataset.v)));
-  set(location.hash === "#user" ? "user" : "admin");
-}
-
-/** Re-draw lucide icons after every render. */
-function paint() {
-  if (window.lucide) window.lucide.createIcons({ attrs: { "stroke-width": 1.75 } });
-}
