@@ -3,12 +3,13 @@
 // 피드백 관리 (decision 14): list on the left, the selected post on the right.
 // Keys: J/K move, 1–4 set the status. Only for admins (the API checks too).
 
+import { Image as ImageIcon, MessageCircle, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AttachArea, uploadAttached, useImageAttach } from "@/components/board/ImageAttach";
 import { KIND, STATUS, STATUS_ORDER, when } from "@/components/board/meta";
-import { BoardImages, KindChip, StatusChip, Timeline } from "@/components/board/parts";
+import { BoardImages, KindChip, KindIcon, SoftButton, StatusChip, Timeline } from "@/components/board/parts";
 import { useAuth } from "@/components/providers/AuthProvider";
-import { Banner, Button, EmptyState, ErrorState, LoadingState } from "@/components/ui";
+import { Banner, EmptyState, ErrorState, LoadingState } from "@/components/ui";
 import { adminListBoard, adminReplyBoard, adminSetBoardStatus, errorMessage } from "@/lib/api";
 import { cx } from "@/lib/format";
 import type { BoardPost, BoardStatus } from "@/lib/types";
@@ -105,22 +106,25 @@ function Board() {
   if (!posts) return <LoadingState />;
 
   return (
-    <div className="grid h-full grid-cols-[400px_minmax(0,1fr)]">
-      <section className="flex min-h-0 flex-col border-r border-line bg-surface">
-        <div className="flex flex-col gap-2.5 border-b border-line px-4 pb-2.5 pt-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">피드백 관리</h1>
-            <Button variant="subtle" className="!px-2 !py-0.5 text-xs" onClick={load}>
+    <div className="grid h-full grid-cols-[400px_minmax(0,1fr)] gap-3 bg-fill p-3">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] bg-surface">
+        <div className="flex flex-col gap-3.5 px-[18px] pb-2.5 pt-[22px]">
+          <div className="flex items-center justify-between px-1">
+            <h1 className="text-[22px] font-bold tracking-[-0.03em] text-tx">피드백 관리</h1>
+            <button type="button" onClick={load} className="h-8 rounded-[10px] bg-fill px-3 text-[13px] font-semibold text-tx-2 hover:bg-fill-strong">
               새로고침
-            </Button>
+            </button>
           </div>
-          <input
-            className="w-full rounded-[10px] border border-line-strong bg-surface px-3 py-1.5 text-[13px]"
-            placeholder="내용 · 남긴 사람 · 화면 · #번호 검색"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <div className="flex gap-0.5" role="tablist">
+          <label className="soft-within flex h-11 items-center gap-2 rounded-xl bg-fill px-3.5 text-tx-3">
+            <Search aria-hidden size={16} strokeWidth={1.75} />
+            <input
+              className="w-full bg-transparent text-[14.5px] text-tx outline-none placeholder:text-tx-3"
+              placeholder="내용 · 남긴 사람 · 화면 · #번호 검색"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </label>
+          <div className="flex gap-1 overflow-x-auto" role="tablist">
             {TABS.map(([k, l]) => (
               <button
                 key={k}
@@ -130,47 +134,71 @@ function Board() {
                   setTab(k);
                   setPinned(null);
                 }}
-                className={cx("whitespace-nowrap rounded-lg px-2.5 py-1 text-[13px]", tab === k ? "bg-accent-soft font-semibold text-accent" : "text-muted hover:bg-tile")}
+                className={cx(
+                  "h-[34px] shrink-0 whitespace-nowrap rounded-full px-3 text-[13.5px] font-semibold",
+                  tab === k ? "bg-tx text-tx-inverse" : "text-tx-2 hover:bg-fill",
+                )}
               >
                 {l}
-                <span className="ml-1 font-mono text-[11.5px]">{counts[k]}</span>
+                <span className="ml-1 tabular-nums opacity-60">{counts[k]}</span>
               </button>
             ))}
           </div>
         </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto">
-          {visible.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                onClick={() => setSel(p.id)}
-                className={cx(
-                  "grid w-full grid-cols-[14px_minmax(0,1fr)_auto] gap-2.5 border-b border-l-[3px] border-b-line px-4 py-2.5 text-left",
-                  current?.id === p.id ? "border-l-accent bg-accent-soft" : "border-l-transparent hover:bg-app",
-                )}
-              >
-                <span aria-hidden className={cx("mt-1.5 h-2.5 w-2.5 rounded-full", STATUS[p.status].dot)} />
-                <span className="min-w-0">
-                  <span className="block truncate text-[13.5px] font-semibold">{p.title}</span>
-                  <span className="block truncate text-xs text-muted">
-                    {KIND[p.kind].icon} {KIND[p.kind].label} · {p.author} · {p.page ?? "—"}
+        <ul className="min-h-0 flex-1 overflow-y-auto px-2.5 pb-2.5 pt-1">
+          {visible.map((p) => {
+            const replies = p.comments.filter((c) => c.kind === "comment").length;
+            return (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => setSel(p.id)}
+                  className={cx(
+                    "grid w-full grid-cols-[8px_minmax(0,1fr)_auto] gap-3 rounded-[14px] px-3 py-3.5 text-left",
+                    current?.id === p.id ? "bg-fill" : "hover:bg-fill-weak",
+                  )}
+                >
+                  <span aria-hidden className={cx("mt-2 h-1.5 w-1.5 rounded-full", STATUS[p.status].dot)} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-semibold tracking-[-0.01em] text-tx">{p.title}</span>
+                    <span className="mt-0.5 flex items-center gap-1 truncate text-[13px] text-tx-3">
+                      <KindIcon kind={p.kind} size={13} />
+                      {KIND[p.kind].label} · {p.author} · {p.page ?? "—"}
+                    </span>
                   </span>
-                </span>
-                <span className="flex flex-col items-end gap-1 text-xs text-muted">
-                  <span>{when(p.created_at)}</span>
-                  <span>
-                    {p.images.length > 0 && `🖼 ${p.images.length}`} {p.comments.filter((c) => c.kind === "comment").length > 0 && `💬 ${p.comments.filter((c) => c.kind === "comment").length}`}
+                  <span className="flex flex-col items-end gap-1 text-[12.5px] tabular-nums text-tx-3">
+                    <span>{when(p.created_at)}</span>
+                    <span className="flex gap-2">
+                      {p.images.length > 0 && (
+                        <span className="inline-flex items-center gap-0.5" aria-label={`사진 ${p.images.length}장`}>
+                          <ImageIcon aria-hidden size={13} strokeWidth={1.75} />
+                          {p.images.length}
+                        </span>
+                      )}
+                      {replies > 0 && (
+                        <span className="inline-flex items-center gap-0.5" aria-label={`답변 ${replies}개`}>
+                          <MessageCircle aria-hidden size={13} strokeWidth={1.75} />
+                          {replies}
+                        </span>
+                      )}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </li>
-          ))}
-          {!visible.length && <p className="p-5 text-[13px] text-muted">{posts.length ? "이 상태의 피드백이 없어요." : "아직 들어온 피드백이 없어요."}</p>}
+                </button>
+              </li>
+            );
+          })}
+          {!visible.length && <p className="p-5 text-sm text-tx-3">{posts.length ? "이 상태의 피드백이 없어요." : "아직 들어온 피드백이 없어요."}</p>}
         </ul>
       </section>
-      <section className="min-h-0 overflow-y-auto px-7 py-5">
-        {error && <Banner tone="danger">{error}</Banner>}
-        {current ? <Detail key={current.id} post={current} onStatus={(s) => setStatus(current, s)} onReplied={replace} /> : <p className="text-muted">왼쪽에서 피드백을 골라 주세요.</p>}
+      <section className="min-h-0 overflow-y-auto rounded-[20px] bg-surface">
+        <div className="max-w-[800px] px-9 pb-10 pt-[30px]">
+          {error && <Banner tone="danger">{error}</Banner>}
+          {current ? (
+            <Detail key={current.id} post={current} onStatus={(s) => setStatus(current, s)} onReplied={replace} />
+          ) : (
+            <p className="text-tx-3">왼쪽에서 피드백을 골라 주세요.</p>
+          )}
+        </div>
       </section>
     </div>
   );
@@ -198,17 +226,17 @@ function Detail({ post, onStatus, onReplied }: { post: BoardPost; onStatus: (s: 
   };
 
   return (
-    <div className="flex max-w-[860px] flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center gap-1.5">
             <KindChip kind={post.kind} />
             <StatusChip status={post.status} />
-            <span className="font-mono text-xs text-muted">#{post.id}</span>
+            <span className="ml-0.5 text-[13px] tabular-nums text-tx-3">#{post.id}</span>
           </div>
-          <h2 className="text-xl font-bold">{post.title}</h2>
+          <h2 className="text-[26px] font-bold leading-[1.35] tracking-[-0.03em] text-tx">{post.title}</h2>
         </div>
-        <span className="flex shrink-0 gap-2 text-xs text-muted">
+        <span className="flex shrink-0 gap-2.5 text-xs text-tx-3">
           <span>
             <Kbd>J</Kbd>/<Kbd>K</Kbd> 이동
           </span>
@@ -217,39 +245,39 @@ function Detail({ post, onStatus, onReplied }: { post: BoardPost; onStatus: (s: 
           </span>
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="상태 바꾸기">
+      <div className="grid max-w-[520px] grid-cols-4 gap-1 rounded-[14px] bg-fill p-1" role="group" aria-label="상태 바꾸기">
         {STATUS_ORDER.map((s, i) => (
           <button
             key={s}
             type="button"
             aria-pressed={post.status === s}
+            aria-keyshortcuts={String(i + 1)}
             onClick={() => onStatus(s)}
             className={cx(
-              "rounded-full border px-3 py-1 text-[13px]",
-              post.status === s ? cx(STATUS[s].chip, "border-current font-semibold") : "border-line-strong bg-surface hover:border-accent",
+              "h-10 rounded-[10px] text-sm font-semibold transition-colors",
+              post.status === s ? cx("bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.08)]", STATUS[s].text) : "text-tx-2 hover:text-tx",
             )}
           >
-            <span className="mr-1 font-mono text-[11px] opacity-60">{i + 1}</span>
             {STATUS[s].label}
           </button>
         ))}
       </div>
-      <dl className="grid grid-cols-[84px_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
-        <dt className="text-muted">남긴 사람</dt>
-        <dd>
-          {post.author} <span className="text-muted">· {new Date(post.created_at).toLocaleString("ko-KR")}</span>
+      <dl className="grid grid-cols-[76px_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+        <dt className="text-tx-3">남긴 사람</dt>
+        <dd className="text-tx-2">
+          {post.author} <span className="text-tx-3">· {new Date(post.created_at).toLocaleString("ko-KR")}</span>
         </dd>
-        <dt className="text-muted">화면</dt>
-        <dd>{post.page ?? "—"}</dd>
-        <dt className="text-muted">기기</dt>
-        <dd>{post.device ?? "—"}</dd>
+        <dt className="text-tx-3">화면</dt>
+        <dd className="text-tx-2">{post.page ?? "—"}</dd>
+        <dt className="text-tx-3">기기</dt>
+        <dd className="text-tx-2">{post.device ?? "—"}</dd>
       </dl>
-      <p className="whitespace-pre-wrap rounded-[12px] border border-line bg-surface px-4 py-3 text-[14px]">{post.body}</p>
+      <p className="whitespace-pre-wrap rounded-2xl bg-fill-weak px-5 py-[18px] text-[15.5px] leading-[1.7] text-tx">{post.body}</p>
       <BoardImages images={post.images} size={180} />
       <Timeline comments={post.comments} authorName={post.author ?? "사용자"} />
-      <div className="flex flex-col gap-2 rounded-[12px] border border-line-strong bg-surface p-3" onPaste={attach.onPaste}>
+      <div className="flex flex-col gap-2.5 rounded-[18px] bg-fill p-3.5" onPaste={attach.onPaste}>
         <textarea
-          className="min-h-[72px] w-full resize-y bg-transparent text-[13.5px] outline-none"
+          className="soft-field min-h-[72px] w-full resize-y rounded-xl bg-surface px-3.5 py-3 text-[15px] text-tx outline-none placeholder:text-tx-3"
           value={text}
           maxLength={2000}
           onChange={(e) => setText(e.target.value)}
@@ -257,17 +285,22 @@ function Detail({ post, onStatus, onReplied }: { post: BoardPost; onStatus: (s: 
         />
         <div className="flex flex-wrap gap-1.5">
           {QUICK.map((t) => (
-            <button key={t} type="button" onClick={() => setText(t)} className="rounded-full border border-dashed border-line-strong px-2.5 py-0.5 text-xs text-muted hover:text-ink">
+            <button
+              key={t}
+              type="button"
+              onClick={() => setText(t)}
+              className="h-[30px] rounded-full bg-surface px-3 text-[13px] font-semibold text-tx-2 hover:text-tx"
+            >
               {t.split(".")[0]}
             </button>
           ))}
         </div>
-        <AttachArea state={attach} compact />
+        <AttachArea state={attach} tone="white" />
         {error && <Banner tone="danger">{error}</Banner>}
         <div className="flex justify-end">
-          <Button onClick={send} loading={busy} disabled={!text.trim() && !attach.items.length}>
+          <SoftButton onClick={send} loading={busy} disabled={!text.trim() && !attach.items.length}>
             답변 보내기
-          </Button>
+          </SoftButton>
         </div>
       </div>
     </div>
@@ -275,5 +308,5 @@ function Detail({ post, onStatus, onReplied }: { post: BoardPost; onStatus: (s: 
 }
 
 function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="rounded border border-b-2 border-line-strong bg-surface px-1 font-mono text-[11px]">{children}</kbd>;
+  return <kbd className="rounded bg-fill px-[5px] py-px font-mono text-[11px] text-tx-2">{children}</kbd>;
 }

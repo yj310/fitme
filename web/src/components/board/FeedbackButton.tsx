@@ -4,15 +4,16 @@
 // covers the 보내기 / 다음 buttons at the bottom. Opens a panel to write feedback (with a capture of
 // the current screen) and to follow your own posts. Marked data-feedback-ui so the capture skips it.
 
+import { Info, MessageSquareText, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { addBoardComment, createBoardPost, errorMessage, getMyBoard, markBoardSeen } from "@/lib/api";
 import { cx } from "@/lib/format";
 import type { BoardKind, BoardPost } from "@/lib/types";
-import { Banner, Button, LoadingState } from "../ui";
+import { Banner, LoadingState } from "../ui";
 import { AttachArea, uploadAttached, useImageAttach } from "./ImageAttach";
 import { KIND, deviceLabel, pageLabel, when } from "./meta";
-import { BoardImages, StatusChip, StatusSteps, Timeline } from "./parts";
+import { BoardImages, KindIcon, SoftButton, StatusChip, StatusSteps, Timeline } from "./parts";
 
 const CAPTURE_LABEL = "지금 화면";
 
@@ -83,11 +84,12 @@ export function FeedbackButton({ where }: { where?: string }) {
         data-feedback-ui
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-l-[12px] bg-accent px-2 py-3 text-[13px] font-semibold text-accent-ink shadow-lg [writing-mode:vertical-rl] hover:pr-3"
+        className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-2xl bg-surface px-2.5 py-4 text-[13px] font-bold text-tx shadow-[0_4px_20px_rgba(0,0,0,0.12)] transition-[padding] hover:pr-3.5"
       >
-        💬 피드백
+        <MessageSquareText aria-hidden size={18} strokeWidth={1.75} className="text-st-doing" />
+        <span className="[writing-mode:vertical-rl]">피드백</span>
         {unread > 0 && (
-          <span className="grid h-5 w-5 place-items-center rounded-full bg-good font-mono text-[11px] text-white [writing-mode:horizontal-tb]" aria-label={`새 답변 ${unread}개`}>
+          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-st-new px-1 text-[11.5px] tabular-nums text-white" aria-label={`새 답변 ${unread}개`}>
             {unread}
           </span>
         )}
@@ -98,9 +100,9 @@ export function FeedbackButton({ where }: { where?: string }) {
           data-feedback-ui
           role="dialog"
           aria-label="피드백"
-          className="fixed right-12 top-1/2 z-40 flex max-h-[min(640px,calc(100vh-48px))] w-[380px] -translate-y-1/2 flex-col overflow-hidden rounded-[16px] border border-line bg-surface shadow-2xl"
+          className="fixed right-14 top-1/2 z-40 flex max-h-[min(660px,calc(100vh-40px))] w-[384px] max-w-[calc(100vw-72px)] -translate-y-1/2 flex-col overflow-hidden rounded-3xl bg-surface shadow-[0_20px_60px_rgba(0,0,0,0.18)] dark:ring-1 dark:ring-fill-strong"
         >
-          <div className="flex border-b border-line">
+          <div className="flex gap-1 px-3.5 pt-3.5">
             {(
               [
                 ["write", "남기기"],
@@ -111,14 +113,14 @@ export function FeedbackButton({ where }: { where?: string }) {
                 key={k}
                 type="button"
                 onClick={() => setTab(k)}
-                className={cx("flex-1 border-b-2 py-2.5 text-[13.5px] font-semibold", tab === k ? "border-accent text-accent" : "border-transparent text-muted")}
+                className={cx("h-10 flex-1 rounded-xl text-[14.5px] font-semibold", tab === k ? "bg-fill text-tx" : "text-tx-3 hover:text-tx-2")}
               >
                 {l}
-                {k === "mine" && unread > 0 && <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-good align-middle" />}
+                {k === "mine" && unread > 0 && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-st-new align-middle" />}
               </button>
             ))}
-            <button type="button" aria-label="닫기" onClick={() => setOpen(false)} className="px-3 text-lg text-muted">
-              ×
+            <button type="button" aria-label="닫기" onClick={() => setOpen(false)} className="grid w-10 place-items-center text-tx-3 hover:text-tx">
+              <X aria-hidden size={18} strokeWidth={1.75} />
             </button>
           </div>
           {tab === "write" ? (
@@ -176,8 +178,8 @@ function WriteTab({ page, onSent }: { page: string; onSent: () => void }) {
   };
 
   return (
-    <div className="flex flex-col gap-3 overflow-y-auto p-4" onPaste={attach.onPaste}>
-      <div className="grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="종류">
+    <div className="flex flex-col gap-3 overflow-y-auto px-[18px] pb-5 pt-4" onPaste={attach.onPaste}>
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="종류">
         {(Object.keys(KIND) as BoardKind[]).map((k) => (
           <button
             key={k}
@@ -186,31 +188,34 @@ function WriteTab({ page, onSent }: { page: string; onSent: () => void }) {
             aria-checked={kind === k}
             onClick={() => setKind(k)}
             className={cx(
-              "flex flex-col items-center gap-0.5 rounded-[12px] border-[1.5px] px-1 py-2 text-[12.5px]",
-              kind === k ? "border-accent bg-accent-soft font-semibold text-accent" : "border-line",
+              "flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3.5 text-[13px] font-semibold transition-colors",
+              kind === k ? "bg-tx text-tx-inverse" : "bg-fill text-tx-2 hover:bg-fill-strong",
             )}
           >
-            <span className="text-[20px]">{KIND[k].icon}</span>
+            <KindIcon kind={k} size={22} />
             {KIND[k].ask}
           </button>
         ))}
       </div>
       <textarea
-        className="min-h-[96px] w-full resize-y rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-[13.5px]"
+        className="soft-field min-h-[120px] w-full resize-y rounded-[14px] bg-fill px-4 py-3.5 text-[15px] text-tx outline-none placeholder:text-tx-3"
         value={body}
         maxLength={2000}
         onChange={(e) => setBody(e.target.value)}
         placeholder={kind === "bug" ? "무엇을 했을 때 어떻게 됐나요? 짧게 적어도 돼요" : kind === "idea" ? "어떻게 되면 좋을까요?" : "자유롭게 적어 주세요"}
         autoFocus
       />
-      <p className="rounded-[10px] bg-app px-3 py-2 text-xs text-muted">
-        <span className="font-semibold text-ink">{page}</span> 화면에서 남겨요. 기기 정보와 {capturing ? "지금 화면 캡처(만드는 중…)" : "지금 화면 캡처"}가 함께 가요. 캡처가 싫으면 사진에서 빼 주세요.
+      <p className="flex gap-1.5 px-0.5 text-[12.5px] leading-relaxed text-tx-3">
+        <Info aria-hidden size={14} strokeWidth={1.75} className="mt-[3px] shrink-0" />
+        <span>
+          <b className="font-semibold text-tx-2">{page}</b> 화면에서 남겨요. 기기 정보와 {capturing ? "지금 화면 캡처(만드는 중…)" : "지금 화면 캡처"}가 함께 가요. 캡처가 싫으면 사진에서 빼 주세요.
+        </span>
       </p>
-      <AttachArea state={attach} compact />
+      <AttachArea state={attach} />
       {error && <Banner tone="danger">{error}</Banner>}
-      <Button onClick={send} loading={busy} disabled={!body.trim()}>
+      <SoftButton onClick={send} loading={busy} disabled={!body.trim()} className="h-[50px] w-full rounded-[14px] text-[15.5px]">
         보내기
-      </Button>
+      </SoftButton>
     </div>
   );
 }
@@ -242,23 +247,27 @@ function MineTab({ onSeen }: { onSeen: () => void }) {
 
   if (error) return <Banner tone="danger">{error}</Banner>;
   if (!posts) return <LoadingState />;
-  if (!posts.length) return <p className="p-6 text-center text-[13px] text-muted">아직 남긴 피드백이 없어요.</p>;
+  if (!posts.length) return <p className="p-8 text-center text-sm text-tx-3">아직 남긴 피드백이 없어요.</p>;
   return (
-    <ul className="flex flex-col gap-2 overflow-y-auto p-3">
+    <ul className="flex flex-col gap-2 overflow-y-auto px-3.5 pb-4 pt-3">
       {posts.map((p) => (
-        <li key={p.id} className={cx("rounded-[12px] border p-3", p.unread ? "border-good" : "border-line")}>
-          <button type="button" className="flex w-full items-start justify-between gap-2 text-left" onClick={() => setOpenId(openId === p.id ? null : p.id)}>
-            <span className="text-[13.5px] font-semibold">
-              {p.unread && <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-good align-middle" aria-label="새 소식" />}
+        <li key={p.id} className={cx("rounded-[18px] p-4", p.unread ? "bg-st-doing-soft" : "bg-fill-weak")}>
+          <button type="button" className="flex w-full items-start justify-between gap-2.5 text-left" onClick={() => setOpenId(openId === p.id ? null : p.id)}>
+            <span className="text-[15px] font-bold tracking-[-0.01em] text-tx">
+              {p.unread && <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-st-new align-middle" aria-label="새 소식" />}
               {p.title}
             </span>
             <StatusChip status={p.status} />
           </button>
-          <div className="mt-2">
+          <div className="mt-3">
             <StatusSteps status={p.status} />
           </div>
           {openId === p.id && <MineDetail post={p} onAdded={load} />}
-          {openId !== p.id && <p className="mt-1.5 text-[11.5px] text-muted">{when(p.created_at)} · {p.page}</p>}
+          {openId !== p.id && (
+            <p className="mt-2 text-[12.5px] text-tx-3">
+              {when(p.created_at)} · {p.page}
+            </p>
+          )}
         </li>
       ))}
     </ul>
@@ -287,25 +296,25 @@ function MineDetail({ post, onAdded }: { post: BoardPost; onAdded: () => void })
   };
   return (
     <div className="mt-3 flex flex-col gap-3" onPaste={attach.onPaste}>
-      {post.body.trim() !== post.title && <p className="whitespace-pre-wrap text-[13px]">{post.body}</p>}
+      {post.body.trim() !== post.title && <p className="whitespace-pre-wrap text-sm text-tx-2">{post.body}</p>}
       <BoardImages images={post.images} size={56} />
-      <p className="text-[11.5px] text-muted">
+      <p className="text-[12.5px] text-tx-3">
         {when(post.created_at)} · {post.page} · #{post.id}
       </p>
-      <Timeline comments={post.comments} authorName="나" />
-      <div className="flex flex-col gap-2 border-t border-dashed border-line pt-3">
+      <Timeline comments={post.comments} authorName="나" onWhite />
+      <div className="flex flex-col gap-2">
         <textarea
-          className="min-h-[56px] w-full resize-y rounded-[10px] border border-line-strong bg-surface px-3 py-2 text-[13px]"
+          className="soft-field min-h-[56px] w-full resize-y rounded-xl bg-surface px-3.5 py-3 text-sm text-tx outline-none placeholder:text-tx-3"
           value={text}
           maxLength={2000}
           onChange={(e) => setText(e.target.value)}
           placeholder="덧붙일 내용이나 사진 (예: 다시 해 보니 또 그래요)"
         />
-        <AttachArea state={attach} compact />
+        <AttachArea state={attach} tone="white" />
         {error && <Banner tone="danger">{error}</Banner>}
-        <Button variant="subtle" onClick={send} loading={busy} disabled={!text.trim() && !attach.items.length}>
+        <SoftButton tone="light" onClick={send} loading={busy} disabled={!text.trim() && !attach.items.length} className="h-[42px] w-full">
           덧붙이기
-        </Button>
+        </SoftButton>
       </div>
     </div>
   );

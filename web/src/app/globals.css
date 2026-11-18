@@ -21,6 +21,23 @@
   --danger-soft: #fbe9e7;
   --bubble: #2c4a8c;
   --bubble-ink: #ffffff;
+  /* 피드백 게시판 (decision 15): soft style — grey fills instead of borders, one dark button colour,
+     status colours used for small dots, tinted chips and the progress bar. */
+  --fill: #f2f4f6;
+  --fill-weak: #f9fafb;
+  --fill-strong: #e5e8eb;
+  --tx: #191f28;
+  --tx-2: #4e5968;
+  --tx-3: #8b95a1;
+  --tx-inverse: #ffffff;
+  --st-new: #f04452;
+  --st-new-soft: #fdecee;
+  --st-doing: #3182f6;
+  --st-doing-soft: #e8f3ff;
+  --st-done: #12a150;
+  --st-done-soft: #e5f6ec;
+  --st-hold: #8b95a1;
+  --st-hold-soft: #f2f4f6;
   color-scheme: light;
 }
 
@@ -45,6 +62,21 @@
     --danger-soft: #3a1d1b;
     --bubble: #3a5aa6;
     --bubble-ink: #ffffff;
+    --fill: #252933;
+    --fill-weak: #1f222b;
+    --fill-strong: #323744;
+    --tx: #eef0f3;
+    --tx-2: #c2c8d0;
+    --tx-3: #8b95a1;
+    --tx-inverse: #111318;
+    --st-new: #ff6b77;
+    --st-new-soft: #3a1f24;
+    --st-doing: #5c9dff;
+    --st-doing-soft: #1b2a44;
+    --st-done: #3ccf7a;
+    --st-done-soft: #173326;
+    --st-hold: #9aa3ad;
+    --st-hold-soft: #2a2e37;
     color-scheme: dark;
   }
 }
@@ -69,6 +101,21 @@
   --color-danger-soft: var(--danger-soft);
   --color-bubble: var(--bubble);
   --color-bubble-ink: var(--bubble-ink);
+  --color-fill: var(--fill);
+  --color-fill-weak: var(--fill-weak);
+  --color-fill-strong: var(--fill-strong);
+  --color-tx: var(--tx);
+  --color-tx-2: var(--tx-2);
+  --color-tx-3: var(--tx-3);
+  --color-tx-inverse: var(--tx-inverse);
+  --color-st-new: var(--st-new);
+  --color-st-new-soft: var(--st-new-soft);
+  --color-st-doing: var(--st-doing);
+  --color-st-doing-soft: var(--st-doing-soft);
+  --color-st-done: var(--st-done);
+  --color-st-done-soft: var(--st-done-soft);
+  --color-st-hold: var(--st-hold);
+  --color-st-hold-soft: var(--st-hold-soft);
   --font-sans: var(--font-plex), "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 }
@@ -113,4 +160,14 @@ button:disabled {
   background: var(--tile);
   animation: fitme-pulse 1.4s ease-in-out infinite;
   border-radius: 10px;
+}
+
+/* 피드백 게시판 (decision 15): soft fields show a soft ring instead of the global outline. */
+.soft-field:focus-visible,
+.soft-within:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--st-doing) 55%, transparent);
+}
+.soft-within :focus-visible {
+  outline: none;
 }

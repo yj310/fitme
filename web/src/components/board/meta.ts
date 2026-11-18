@@ -1,17 +1,19 @@
 import type { BoardKind, BoardStatus } from "@/lib/types";
 
-export const STATUS: Record<BoardStatus, { label: string; chip: string; dot: string }> = {
-  new: { label: "접수", chip: "bg-warn-soft text-warn", dot: "bg-warn" },
-  doing: { label: "해결 중", chip: "bg-accent-soft text-accent", dot: "bg-accent" },
-  done: { label: "해결됨", chip: "bg-good-soft text-good", dot: "bg-good" },
-  hold: { label: "보류", chip: "bg-tile text-muted", dot: "bg-line-strong" },
+/** Soft style (decision 15): status colour only on a tinted chip, a small dot, text and the progress bar. */
+export const STATUS: Record<BoardStatus, { label: string; chip: string; dot: string; text: string; bar: string }> = {
+  new: { label: "접수", chip: "bg-st-new-soft text-st-new", dot: "bg-st-new", text: "text-st-new", bar: "bg-st-new" },
+  doing: { label: "해결 중", chip: "bg-st-doing-soft text-st-doing", dot: "bg-st-doing", text: "text-st-doing", bar: "bg-st-doing" },
+  done: { label: "해결됨", chip: "bg-st-done-soft text-st-done", dot: "bg-st-done", text: "text-st-done", bar: "bg-st-done" },
+  hold: { label: "보류", chip: "bg-st-hold-soft text-st-hold", dot: "bg-st-hold", text: "text-st-hold", bar: "bg-st-hold" },
 };
 export const STATUS_ORDER: BoardStatus[] = ["new", "doing", "done", "hold"];
 
-export const KIND: Record<BoardKind, { label: string; ask: string; icon: string }> = {
-  bug: { label: "버그", ask: "안 돼요", icon: "🐞" },
-  idea: { label: "개선 제안", ask: "이러면 좋겠어요", icon: "💡" },
-  etc: { label: "기타", ask: "그 밖에", icon: "💬" },
+/** Icons for each kind live in parts.tsx (KindIcon). */
+export const KIND: Record<BoardKind, { label: string; ask: string }> = {
+  bug: { label: "버그", ask: "안 돼요" },
+  idea: { label: "개선 제안", ask: "이러면 좋겠어요" },
+  etc: { label: "기타", ask: "그 밖에" },
 };
 
 const PAGES: [string, string][] = [
