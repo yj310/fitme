@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>피드백 게시판 시안 v2</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  body { background: #fff; }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 24px 80px; }
+  h1 { font-size: 28px; letter-spacing: -0.025em; margin: 0 0 8px; }
+  .lead { color: var(--muted); font-size: 15px; margin: 0 0 40px; }
+  h2 { font-size: 15px; margin: 40px 0 12px; }
+  ul.why { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+  ul.why li { display: grid; grid-template-columns: 200px 1fr; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  ul.why b { font-weight: 600; }
+  ul.why span { color: var(--ink-2); }
+  .cards { display: grid; gap: 12px; }
+  a.card { display: grid; grid-template-columns: 40px 1fr auto; gap: 16px; align-items: center; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-decoration: none; }
+  a.card:hover { border-color: var(--ink); }
+  a.card .k { font-size: 22px; font-weight: 700; }
+  a.card b { font-size: 16px; display: block; }
+  a.card p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; }
+  a.card .go { color: var(--muted); font-size: 13px; }
+  .note { margin-top: 32px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>피드백 게시판 시안 v2</h1>
+  <p class="lead">지금 화면이 'AI가 만든 것 같은' 이유를 걷어 내고, 실제 서비스에서 흔히 쓰는 세 가지 방식으로 다시 그렸어요.<br />
+    각 시안 위쪽 막대에서 <b>관리자 화면</b>과 <b>사용자 피드백 버튼</b>을 바꿔 볼 수 있어요.</p>
+
+  <h2>지금 디자인에서 걷어 낸 것</h2>
+  <ul class="why">
+    <li><b>이모지 아이콘</b><span>🐞 💡 💬 🖼 대신 선이 얇은 아이콘 한 벌만 써요.</span></li>
+    <li><b>색 칠한 알약 칩</b><span>상태·종류·빠른 답변이 전부 색 배경 알약이었어요. 상태 색은 작은 아이콘에만 쓰고 나머지는 글자로만 보여 줘요.</span></li>
+    <li><b>상자 안의 상자</b><span>테두리 카드를 겹겹이 쓰지 않고, 여백과 가는 구분선으로 나눠요.</span></li>
+    <li><b>설명 문장</b><span>"끌어다 놓기, 클릭, 스크린샷은 ⌘/Ctrl+V (0/5)" 같은 안내를 아이콘 하나와 짧은 한 줄로 줄였어요.</span></li>
+    <li><b>세로 글씨 탭</b><span>화면 오른쪽에 세로로 붙은 '💬 피드백' 대신 실제 서비스처럼 오른쪽 아래 버튼을 써요.</span></li>
+    <li><b>단축키 안내 상시 노출</b><span>J/K·1–4 단축키는 그대로 두되 화면에는 메뉴 안에서만 보여요.</span></li>
+    <li><b>글꼴과 남색 강조색</b><span>IBM Plex 대신 국내 서비스에서 많이 쓰는 Pretendard, 강조색 대신 검정 버튼 하나.</span></li>
+  </ul>
+
+  <h2>시안</h2>
+  <div class="cards">
+    <a class="card" href="a-tracker.html#admin"><span class="k">A</span><div><b>이슈 트래커</b><p>Linear·Height 같은 업무 도구. 한 줄 목록 + 글 + 오른쪽 속성 칸. 피드백이 많아져도 빠르게 훑어요. 사용자는 작은 팝업에서 보내요.</p></div><span class="go">보기 →</span></a>
+    <a class="card" href="b-inbox.html#admin"><span class="k">B</span><div><b>메신저</b><p>채널톡·인터콤처럼 피드백 하나가 대화 하나. 답변이 말풍선으로 오가서 테스터와 주고받기 편해요. 사용자는 오른쪽 아래 둥근 버튼으로 열어요.</p></div><span class="go">보기 →</span></a>
+    <a class="card" href="c-board.html#admin"><span class="k">C</span><div><b>게시판</b><p>GitHub 이슈·사내 게시판처럼 표 하나로 보고, 누르면 글 화면으로 들어가요. 가장 익숙하고 단순해요. 사용자는 가운데 창에서 양식으로 보내요.</p></div><span class="go">보기 →</span></a>
+  </div>
+  <p class="note">세 시안 모두 같은 데이터(지금 게시판의 9건 + 진행 중 예시 3건)와 같은 기능(상태 4단계, 사진, 지금 화면 자동 캡처, 빠른 답변, 내 피드백·새 소식)을 써요. 기능은 그대로고 모양만 달라요.</p>
+</main>
+</body>
+</html>

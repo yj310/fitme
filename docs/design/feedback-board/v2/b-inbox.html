@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>B 메신저 · 피드백 게시판 시안</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  /* B — 메신저: 채널톡·인터콤처럼 피드백 하나가 대화 하나. 답변이 말풍선으로 오가요. */
+  .st-new { color: var(--st-new); } .st-doing { color: var(--st-doing); } .st-done { color: var(--st-done); } .st-hold { color: var(--st-hold); }
+  .board { display: grid; grid-template-columns: 340px minmax(0, 1fr) 260px; height: 100%; background: #fff; }
+
+  .inbox { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  .ihead { padding: 18px 16px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .ihead h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+  .pills { display: flex; gap: 6px; }
+  .pills button { height: 30px; padding: 0 12px; border-radius: 15px; font-size: 13px; color: var(--ink-2); background: var(--bg-2); }
+  .pills button.on { background: var(--ink); color: #fff; font-weight: 600; }
+  .pills .n { margin-left: 4px; opacity: .6; }
+  .convs { overflow-y: auto; flex: 1; }
+  .conv { width: 100%; display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; padding: 12px 16px; text-align: left; }
+  .conv:hover { background: var(--bg-2); }
+  .conv.on { background: #f0f1f3; }
+  .av { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #fff; }
+  .conv .top { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+  .conv .top b { font-weight: 600; }
+  .conv .top .time { margin-left: auto; color: var(--faint); font-size: 12px; }
+  .conv .t { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px; }
+  .conv .sub { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .conv .sub svg.lucide { width: 13px; height: 13px; }
+
+  .chat { display: flex; flex-direction: column; min-height: 0; background: #fafafb; }
+  .chead { height: 60px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 20px; border-bottom: 1px solid var(--line); background: #fff; }
+  .chead h2 { margin: 0; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chead .sp { flex: 1; }
+  .ghost { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 8px; font-size: 13px; background: #fff; }
+  .ghost:hover { background: var(--bg-2); }
+  .solid { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--ink); color: #fff; }
+  .dd { position: relative; }
+  .dd .pop { position: absolute; top: 36px; right: 0; z-index: 5; width: 150px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 4px; }
+  .dd .pop button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; font-size: 13px; }
+  .dd .pop button:hover { background: var(--bg-2); }
+  .msgs { flex: 1; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 14px; }
+  .day { align-self: center; font-size: 12px; color: var(--faint); }
+  .m { display: flex; gap: 8px; max-width: 72%; }
+  .m .av { width: 28px; height: 28px; font-size: 11px; flex: none; }
+  .m .name { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .bubble { padding: 10px 13px; border-radius: 4px 16px 16px 16px; background: #fff; border: 1px solid var(--line); font-size: 14px; white-space: pre-wrap; }
+  .bubble .tt { font-weight: 600; display: block; margin-bottom: 4px; }
+  .bubble img { margin-top: 8px; border-radius: 8px; max-height: 160px; width: auto; }
+  .m .time { font-size: 11px; color: var(--faint); align-self: flex-end; white-space: nowrap; }
+  .m.me { align-self: flex-end; flex-direction: row-reverse; }
+  .m.me .bubble { background: var(--ink); color: #fff; border-color: var(--ink); border-radius: 16px 4px 16px 16px; }
+  .sys { align-self: center; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 4px 10px; }
+  .sys svg.lucide { width: 13px; height: 13px; }
+  .compose { flex: none; margin: 0 20px 20px; background: #fff; border: 1px solid var(--line-2); border-radius: 14px; }
+  .compose textarea { width: 100%; border: 0; outline: 0; resize: none; padding: 12px 14px 4px; min-height: 52px; font-size: 14px; background: none; display: block; }
+  .compose .tb { display: flex; align-items: center; gap: 2px; padding: 4px 8px 8px; }
+  .ibtn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 30px; min-width: 30px; padding: 0 6px; border-radius: 8px; color: var(--muted); font-size: 12.5px; }
+  .ibtn:hover { background: var(--bg-2); color: var(--ink); }
+  .send { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; margin-left: auto; }
+  .send svg.lucide { width: 15px; height: 15px; }
+  .qpop { position: relative; }
+  .qpop .pop { position: absolute; bottom: 36px; left: 0; z-index: 5; width: 300px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1); padding: 4px; }
+  .qpop .pop button { display: block; width: 100%; text-align: left; padding: 7px 8px; border-radius: 6px; font-size: 13px; }
+  .qpop .pop button:hover { background: var(--bg-2); }
+
+  .info { border-left: 1px solid var(--line); padding: 24px 20px; display: flex; flex-direction: column; gap: 18px; font-size: 13px; }
+  .who { display: flex; align-items: center; gap: 10px; }
+  .who b { display: block; font-size: 14px; }
+  .who span { color: var(--muted); font-size: 12px; }
+  .info dl { margin: 0; display: grid; grid-template-columns: 56px 1fr; gap: 10px 8px; }
+  .info dt { color: var(--muted); }
+  .info dd { margin: 0; }
+  .info h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .past { display: flex; flex-direction: column; gap: 6px; }
+  .past button { display: flex; align-items: center; gap: 6px; text-align: left; font-size: 12.5px; color: var(--ink-2); }
+  .past button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .past svg.lucide { width: 13px; height: 13px; }
+
+  /* ── user widget ── */
+  .launcher { position: absolute; right: 24px; bottom: 24px; width: 54px; height: 54px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,0,0,.22); }
+  .launcher svg.lucide { width: 22px; height: 22px; }
+  .launcher .badge { position: absolute; top: -2px; right: -2px; min-width: 18px; height: 18px; border-radius: 9px; background: #ff5a36; font-size: 11px; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; }
+  .wpanel { position: absolute; right: 24px; bottom: 90px; width: 376px; height: min(620px, calc(100% - 120px)); background: #fff; border-radius: 18px; box-shadow: 0 18px 60px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden; }
+  .whero { padding: 24px 22px 18px; }
+  .whero .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: .12em; font-size: 13px; }
+  .whero h3 { margin: 16px 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.35; }
+  .whero p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .wbtn { margin: 0 22px; height: 46px; border-radius: 12px; background: var(--ink); color: #fff; font-weight: 600; font-size: 14.5px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .wlist { margin-top: 22px; border-top: 1px solid var(--line); overflow-y: auto; }
+  .wlist h4 { margin: 14px 22px 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .wrow { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 12px 22px; text-align: left; }
+  .wrow:hover { background: var(--bg-2); }
+  .wrow .t { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wrow .p { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; grid-column: 1; }
+  .wrow .r { grid-row: 1 / 3; grid-column: 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; font-size: 12px; color: var(--faint); }
+  .wrow .new { width: 8px; height: 8px; border-radius: 50%; background: #ff5a36; }
+  .wtop { height: 56px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+  .wtop b { font-size: 14.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wmsgs { flex: 1; overflow-y: auto; padding: 18px 16px; display: flex; flex-direction: column; gap: 12px; background: #fafafb; }
+  .wmsgs .m { max-width: 86%; }
+  .kinds { display: flex; gap: 6px; }
+  .kinds button { height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--line-2); font-size: 13px; background: #fff; display: inline-flex; align-items: center; gap: 5px; }
+  .kinds button.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .kinds svg.lucide { width: 14px; height: 14px; }
+  .wcomp { flex: none; border-top: 1px solid var(--line); padding: 10px 12px 12px; }
+  .wcomp .row { display: flex; align-items: flex-end; gap: 6px; }
+  .wcomp textarea { flex: 1; border: 0; outline: 0; resize: none; min-height: 44px; font-size: 14px; padding: 8px 4px; }
+  .thumbs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .thumb { position: relative; width: 60px; height: 44px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb button { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; display: grid; place-items: center; }
+  .thumb button svg.lucide { width: 10px; height: 10px; stroke-width: 2.5; }
+  .thumb span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; color: #fff; background: rgba(0,0,0,.5); text-align: center; }
+</style>
+</head>
+<body>
+<div class="stage" id="root"></div>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script src="shared.js"></script>
+<script>
+const S = { tab: "open", sel: 12, dd: false, quick: false, open: true, screen: "home", thread: null, kind: "bug", capture: true };
+const root = document.getElementById("root");
+const COLORS = { 지민: "#8a6d5a", 서연: "#5d6f8a", 도윤: "#6b7d5b", 하준: "#7a5d84", "FITME 팀": "#3c4049", 나: "#3c4049" };
+const av = (name) => `<span class="av" style="background:${COLORS[name] ?? "#7a7f8a"}">${esc(name === "FITME 팀" ? "F" : name[0])}</span>`;
+const fitAv = `<span class="av" style="background:var(--ink)">F</span>`;
+const last = (p) => p.log.filter((l) => !l.status).at(-1);
+
+function visible() {
+  const want = { open: ["new", "doing"], done: ["done", "hold"], all: STATUS_ORDER }[S.tab];
+  return POSTS.filter((p) => want.includes(p.status));
+}
+
+function thread(p, mine) {
+  const me = (by) => (mine ? by !== "admin" : by === "admin");
+  const [d, t] = p.at.split(" ");
+  let out = `<div class="day num">${d}</div>
+    <div class="m ${me("user") ? "me" : ""}">${me("user") ? "" : av(p.author)}<div>${me("user") ? "" : `<div class="name">${esc(p.author)}</div>`}
+      <div class="bubble"><span class="tt">${esc(p.title)}</span>${esc(p.body)}${p.images.map((s) => `<img src="${s}" alt="첨부 사진" />`).join("")}</div></div><span class="time num">${t}</span></div>`;
+  for (const l of p.log) {
+    out += l.status
+      ? `<div class="sys">${stIcon(l.status)}${STATUS[l.status].label}(으)로 바뀌었어요 · <span class="num">${l.at.split(" ")[1]}</span></div>`
+      : `<div class="m ${me("admin") ? "me" : ""}">${me("admin") ? "" : fitAv}<div>${me("admin") ? "" : `<div class="name">FITME</div>`}<div class="bubble">${esc(l.body)}</div></div><span class="time num">${l.at.split(" ")[1]}</span></div>`;
+  }
+  return out;
+}
+
+function admin() {
+  const vis = visible();
+  if (!vis.find((p) => p.id === S.sel) && vis[0]) S.sel = vis[0].id;
+  const p = POSTS.find((x) => x.id === S.sel);
+  const pill = (k, l, n) => `<button class="${S.tab === k ? "on" : ""}" data-tab="${k}">${l}<span class="n num">${n}</span></button>`;
+  const others = POSTS.filter((x) => x.author === p.author && x.id !== p.id);
+  return `<div class="board">
+    <section class="inbox">
+      <div class="ihead"><h1>피드백</h1>
+        <div class="pills">${pill("open", "진행 중", count("new") + count("doing"))}${pill("done", "끝난 것", count("done") + count("hold"))}${pill("all", "전체", count("all"))}</div></div>
+      <div class="convs">${vis.map((x) => `<button class="conv ${x.id === S.sel ? "on" : ""}" data-sel="${x.id}">${av(x.author)}
+        <div style="min-width:0"><div class="top"><b>${esc(x.author)}</b><span class="time num">${x.at.split(" ")[0]}</span></div>
+        <div class="t">${esc(x.title)}</div>
+        <div class="sub">${stIcon(x.status)}${STATUS[x.status].label} · ${KIND[x.kind].label}${replies(x) ? ` · 답변 ${replies(x)}` : ""}</div></div></button>`).join("")}</div>
+    </section>
+    <section class="chat">
+      <div class="chead"><h2>${esc(p.title)}</h2><span class="sp"></span>
+        <span class="dd"><button class="ghost" data-dd>${stIcon(p.status)}${STATUS[p.status].label}${icon("chevron-down")}</button>
+          ${S.dd ? `<div class="pop">${STATUS_ORDER.map((s) => `<button data-set="${s}">${stIcon(s)}${STATUS[s].label}</button>`).join("")}</div>` : ""}</span>
+        ${p.status !== "done" ? `<button class="solid" data-set="done">${icon("check")}해결됨으로</button>` : ""}
+      </div>
+      <div class="msgs">${thread(p, false)}</div>
+      <div class="compose"><textarea placeholder="${esc(p.author)}님에게 답변하기"></textarea>
+        <div class="tb"><button class="ibtn" title="사진">${icon("image")}</button>
+          <span class="qpop"><button class="ibtn" data-quick>${icon("zap")}빠른 답변</button>
+          ${S.quick ? `<div class="pop">${QUICK.map((q) => `<button data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>` : ""}</span>
+          <button class="send" title="보내기">${icon("arrow-up")}</button></div></div>
+    </section>
+    <aside class="info">
+      <div class="who">${av(p.author)}<div><b>${esc(p.author)}</b><span>테스터</span></div></div>
+      <dl><dt>종류</dt><dd>${KIND[p.kind].label}</dd><dt>화면</dt><dd>${esc(p.page)}</dd><dt>기기</dt><dd>${esc(p.device ?? "—")}</dd><dt>번호</dt><dd class="num">#${p.id}</dd></dl>
+      ${others.length ? `<div><h4>이 사람의 다른 피드백</h4><div class="past">${others.map((o) => `<button data-sel="${o.id}">${stIcon(o.status)}<span>${esc(o.title)}</span></button>`).join("")}</div></div>` : ""}
+    </aside>
+  </div>`;
+}
+
+function user() {
+  let inner;
+  if (S.screen === "home") {
+    inner = `<div class="whero"><div class="brand">FITME</div>
+        <h3>불편한 점이나<br />바라는 점을 알려 주세요</h3><p>버그든 제안이든 편하게 남겨 주세요.</p></div>
+      <button class="wbtn" data-screen="new">${icon("pencil")}새 피드백 보내기</button>
+      <div class="wlist"><h4>내 피드백</h4>${MINE.map((m) => `<button class="wrow" data-thread="${m.id}">
+        <span class="t">${esc(m.title)}</span><span class="r num">${m.at.split(" ")[0]}${m.unread ? `<span class="new"></span>` : ""}</span>
+        <span class="p">${last(m) ? "FITME: " + esc(last(m).body) : STATUS[m.status].label}</span></button>`).join("")}</div>`;
+  } else if (S.screen === "new") {
+    inner = `<div class="wtop"><button class="ibtn" data-screen="home" title="뒤로">${icon("chevron-left")}</button><b>새 피드백</b></div>
+      <div class="wmsgs">
+        <div class="m">${fitAv}<div><div class="name">FITME</div><div class="bubble">어떤 이야기인가요?</div></div></div>
+        <div class="kinds">${Object.entries(KIND).map(([k, v]) => `<button class="${S.kind === k ? "on" : ""}" data-kind="${k}">${icon(v.icon)}${v.label}</button>`).join("")}</div>
+        <div class="m">${fitAv}<div><div class="bubble">${S.kind === "bug" ? "무엇을 했을 때 어떻게 됐는지 적어 주세요. 지금 화면을 함께 보내면 더 빨리 고칠 수 있어요." : S.kind === "idea" ? "어떻게 바뀌면 좋을지 편하게 적어 주세요." : "자유롭게 적어 주세요."}</div></div></div>
+      </div>
+      <div class="wcomp">${S.capture ? `<div class="thumbs"><div class="thumb"><img src="${IMG.onboarding}" alt="" /><span>지금 화면</span><button data-uncap title="빼기">${icon("x")}</button></div></div>` : ""}
+        <div class="row"><button class="ibtn" title="사진">${icon("image")}</button><textarea placeholder="메시지 입력"></textarea><button class="send" title="보내기">${icon("arrow-up")}</button></div></div>`;
+  } else {
+    const m = MINE.find((x) => x.id === S.thread);
+    inner = `<div class="wtop"><button class="ibtn" data-screen="home" title="뒤로">${icon("chevron-left")}</button><b>${esc(m.title)}</b></div>
+      <div class="wmsgs">${thread(m, true)}</div>
+      <div class="wcomp"><div class="row"><button class="ibtn" title="사진">${icon("image")}</button><textarea placeholder="덧붙이기"></textarea><button class="send" title="보내기">${icon("arrow-up")}</button></div></div>`;
+  }
+  return `${fakeApp()}${S.open ? `<div class="wpanel" role="dialog" aria-label="피드백">${inner}</div>` : ""}
+    <button class="launcher" data-fab title="피드백">${icon(S.open ? "x" : "message-circle")}${!S.open && MINE.some((m) => m.unread) ? `<span class="badge num">1</span>` : ""}</button>`;
+}
+
+window.render = (v) => { S.view = v ?? S.view; root.innerHTML = S.view === "user" ? user() : admin(); paint();
+  const box = root.querySelector(".msgs, .wmsgs"); if (box) box.scrollTop = box.scrollHeight; };
+
+root.addEventListener("click", (e) => {
+  const t = e.target.closest("button"); if (!t) return; const d = t.dataset;
+  if (d.tab) S.tab = d.tab;
+  else if (d.sel) { S.sel = +d.sel; S.dd = S.quick = false; }
+  else if ("dd" in d) S.dd = !S.dd;
+  else if (d.set) { POSTS.find((p) => p.id === S.sel).status = d.set; S.dd = false; }
+  else if ("quick" in d) S.quick = !S.quick;
+  else if (d.q) { S.quick = false; render(); root.querySelector(".compose textarea").value = d.q; return; }
+  else if (d.screen) S.screen = d.screen;
+  else if (d.thread) { S.screen = "thread"; S.thread = +d.thread; }
+  else if (d.kind) S.kind = d.kind;
+  else if ("uncap" in d) S.capture = false;
+  else if ("fab" in d) S.open = !S.open;
+  else return;
+  render();
+});
+mount("b-inbox.html");
+</script>
+</body>
+</html>
